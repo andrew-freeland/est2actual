@@ -30,6 +30,7 @@ from memory.store_project_summary import (
     retrieve_similar_projects,
     get_project_history
 )
+from visuals.generate_chart import generate_variance_bar_chart, chart_to_base64
 
 
 def create_app():
@@ -51,7 +52,8 @@ def allowed_file(filename: str) -> bool:
 def analyze_files(estimate_path: str, actual_path: str, 
                   project_name: str = "Unnamed Project",
                   save_memory: bool = False,
-                  quick_mode: bool = False) -> Dict[str, Any]:
+                  quick_mode: bool = False,
+                  generate_chart: bool = False) -> Dict[str, Any]:
     """
     Core analysis logic - reusable by both CLI and API.
     
@@ -61,6 +63,7 @@ def analyze_files(estimate_path: str, actual_path: str,
         project_name: Name of the project
         save_memory: Whether to save to Firestore
         quick_mode: Skip Gemini and use quick summary
+        generate_chart: Whether to generate and return chart visualization
     
     Returns:
         Dictionary with analysis results
@@ -117,8 +120,23 @@ def analyze_files(estimate_path: str, actual_path: str,
             except Exception as e:
                 print(f"Warning: Could not save to memory: {str(e)}")
         
+        # Step 7: Generate chart (optional)
+        chart_base64 = None
+        if generate_chart:
+            try:
+                chart_path = generate_variance_bar_chart(variance_df, project_name)
+                chart_base64 = chart_to_base64(chart_path)
+                # Clean up temp file
+                import os
+                try:
+                    os.remove(chart_path)
+                except:
+                    pass
+            except Exception as e:
+                print(f"Warning: Could not generate chart: {str(e)}")
+        
         # Prepare response
-        return {
+        result = {
             'success': True,
             'project_name': project_name,
             'summary': summary_stats,
@@ -128,6 +146,12 @@ def analyze_files(estimate_path: str, actual_path: str,
             'similar_projects_count': len(prior_summaries),
             'memory_id': doc_id
         }
+        
+        # Add chart if generated
+        if chart_base64:
+            result['chart_image_base64'] = chart_base64
+        
+        return result
         
     except Exception as e:
         return {
@@ -159,9 +183,9 @@ def analyze_estimates():
     Expected request:
     - Content-Type: multipart/form-data
     - Files: estimate_file, actual_file
-    - Form data: project_name (optional), save_memory (optional), quick (optional)
+    - Form data: project_name (optional), save_memory (optional), quick (optional), generate_chart (optional)
     
-    Returns JSON with variance analysis and AI insight.
+    Returns JSON with variance analysis, AI insight, and optional chart image (base64).
     """
     # Validate request
     if 'estimate_file' not in request.files:
@@ -190,6 +214,7 @@ def analyze_estimates():
     project_name = request.form.get('project_name', 'Unnamed Project')
     save_memory = request.form.get('save_memory', 'false').lower() == 'true'
     quick_mode = request.form.get('quick', 'false').lower() == 'true'
+    generate_chart = request.form.get('generate_chart', 'false').lower() == 'true'
     
     # Save uploaded files to temporary location
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -205,7 +230,8 @@ def analyze_estimates():
             actual_path,
             project_name=project_name,
             save_memory=save_memory,
-            quick_mode=quick_mode
+            quick_mode=quick_mode,
+            generate_chart=generate_chart
         )
     
     # Return appropriate status code

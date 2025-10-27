@@ -5,7 +5,16 @@ Report Generator: Generate narrative insights using Vertex AI Gemini.
 import os
 from typing import Dict, Any
 import vertexai
-from vertexai.generative_models import GenerativeModel
+
+# Try different import paths for different SDK versions
+try:
+    from vertexai.generative_models import GenerativeModel
+except ImportError:
+    try:
+        from vertexai.preview.generative_models import GenerativeModel
+    except ImportError:
+        # Fallback for older versions
+        GenerativeModel = None
 
 
 def initialize_vertex_ai(project_id: str = None, location: str = "us-central1"):
@@ -40,6 +49,13 @@ def generate_insight_narrative(variance_data: str, summary_stats: Dict[str, Any]
     Returns:
         String containing the narrative insight
     """
+    if GenerativeModel is None:
+        raise RuntimeError(
+            "Vertex AI Generative Models not available. "
+            "This may be due to SDK version mismatch. "
+            "Consider upgrading: pip install --upgrade google-cloud-aiplatform"
+        )
+    
     prompt = _build_prompt(variance_data, summary_stats, project_name, prior_summaries or [])
     
     try:
@@ -89,34 +105,51 @@ def _build_prompt(variance_data: str, summary_stats: Dict[str, Any],
         
         historical_context += "\n**Pattern Detection**: Look for recurring themes across these projects.\n"
     
-    prompt = f"""You are a financial analyst reviewing a project budget variance report.
+    prompt = f"""You are a senior financial analyst preparing an executive summary for a construction project cost analysis.
 
-**Project**: {project_name}
+**PROJECT**: {project_name}
 
-**Summary Statistics**:
-- Total Estimated: ${summary_stats['total_estimated']:,.2f}
-- Total Actual: ${summary_stats['total_actual']:,.2f}
-- Total Variance: ${summary_stats['total_variance']:,.2f} ({summary_stats['total_variance_pct']:.1f}%)
+**FINANCIAL SUMMARY**:
+- Total Estimated Budget: ${summary_stats['total_estimated']:,.2f}
+- Total Actual Spend: ${summary_stats['total_actual']:,.2f}
+- Net Variance: ${summary_stats['total_variance']:,.2f} ({summary_stats['total_variance_pct']:.1f}%)
 - Categories Over Budget: {summary_stats['over_budget_categories']}
 - Categories Under Budget: {summary_stats['under_budget_categories']}
 
-**Biggest Overrun**: {summary_stats['biggest_overrun']['category']} (${summary_stats['biggest_overrun']['amount']:,.2f})
-**Biggest Underrun**: {summary_stats['biggest_underrun']['category']} (${summary_stats['biggest_underrun']['amount']:,.2f})
+**KEY VARIANCES**:
+- Largest Overrun: {summary_stats['biggest_overrun']['category']} (${summary_stats['biggest_overrun']['amount']:,.2f})
+- Largest Underrun: {summary_stats['biggest_underrun']['category']} (${summary_stats['biggest_underrun']['amount']:,.2f})
 
-**Detailed Variance Data**:
+**DETAILED LINE ITEMS**:
 {variance_data}
 {historical_context}
 ---
 
-Please provide a professional, concise narrative insight (3-5 paragraphs) that:
+**TASK**: Write a professional executive summary (300-500 words) analyzing this budget performance. Your response should be formatted as a well-structured business report with clear paragraphs.
 
-1. **Summarizes** the overall budget performance (over/under budget and by how much)
-2. **Identifies** the key cost drivers - which categories had the biggest impact?
-3. **Explains** potential reasons for the variances (be specific to the category names)
-4. **Detects Patterns** - if historical data is provided, identify any recurring issues or trends
-5. **Recommends** 2-3 actionable steps for future projects based on this data and any patterns observed
+**REQUIRED SECTIONS** (use clear paragraph breaks):
 
-Write in a clear, executive-friendly style. Focus on insights, not just restating numbers.
+**Paragraph 1 - Executive Overview:**
+Open with a clear statement of overall project performance. State whether the project came in over or under budget, by how much, and provide immediate context on the financial impact.
+
+**Paragraph 2 - Cost Driver Analysis:**
+Identify and explain the 2-3 most significant cost variances. Be specific about which line items drove the budget performance. Explain what these categories represent and why they may have varied from estimates.
+
+**Paragraph 3 - Pattern Recognition & Root Causes:**
+{("Based on similar past projects, identify any recurring patterns or themes. " if prior_summaries else "")}Analyze potential root causes for the variances. Consider factors like: scope changes, market conditions, estimation accuracy, execution challenges, or external factors specific to the categories involved.
+
+**Paragraph 4 - Actionable Recommendations:**
+Provide 3-4 specific, actionable recommendations for improving cost control on future projects. These should be directly tied to the variances observed and be practical for implementation.
+
+**STYLE GUIDELINES**:
+- Write in full sentences and well-formed paragraphs (not bullet points or lists)
+- Use professional business language suitable for executives
+- Be concise but thorough
+- Focus on insights and "why", not just repeating numbers
+- Use specific dollar amounts when discussing significant variances
+- Make it easy to read and understand at a glance
+
+Write your analysis now:
 """
     return prompt
 

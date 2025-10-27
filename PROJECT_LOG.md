@@ -327,3 +327,399 @@ docker run -p 8080:8080 -e GCP_PROJECT_ID=xxx est2actual
 - Add rate limiting for public deployments
 - Add OpenAPI/Swagger documentation
 
+---
+
+## 2025-10-27: Chart Visualization Feature
+
+### Feature: Variance Bar Chart Generation
+
+**Motivation:**
+- Users need visual representation of variance data
+- Charts provide intuitive understanding at-a-glance
+- Enable easy sharing in presentations and reports
+
+### Implementation:
+
+**New Module: `visuals/`**
+- Created `visuals/generate_chart.py` with:
+  - `generate_variance_bar_chart()`: Creates PNG bar chart of variance by category
+  - `chart_to_base64()`: Converts PNG to base64 for API responses
+
+**Chart Design:**
+- Horizontal bar chart (better for long category names)
+- Color-coded: Red for over budget, green for under budget
+- Sorted by variance magnitude for readability
+- Dollar-formatted labels on bars
+- Professional styling with seaborn
+
+**Dependencies Added:**
+- `matplotlib==3.8.2`: Core charting library
+- `seaborn==0.13.0`: Statistical visualization styling
+
+### CLI Integration:
+
+```bash
+python main.py estimate.xlsx actual.xlsx --generate-chart
+```
+
+- New optional flag: `--generate-chart`
+- Saves PNG to temp directory
+- Prints file path on completion
+- Non-blocking: system works without charts
+
+### API Integration:
+
+```bash
+curl -X POST /analyze \
+  -F "generate_chart=true" \
+  ...
+```
+
+**Request:**
+- New optional form parameter: `generate_chart=true`
+
+**Response:**
+```json
+{
+  "chart_image_base64": "iVBORw0KGgoAAAANSUhEUg...",
+  ...
+}
+```
+
+- Chart embedded as base64 string
+- Compatible with web browsers (data URI)
+- Temporary PNG file auto-deleted after encoding
+- Chart generation optional and non-blocking
+
+### Design Decisions:
+
+**Why matplotlib/seaborn?**
+- Industry standard for Python visualization
+- Extensive customization options
+- PNG export for universal compatibility
+- No JavaScript dependencies
+
+**Why horizontal bars?**
+- Better readability for long category names
+- Natural left-to-right reading flow
+- Easier to compare variance magnitudes
+
+**Why base64 for API?**
+- No need for separate file storage/serving
+- Single JSON response contains everything
+- Browser-ready (data URIs)
+- No CORS issues
+
+**Why optional?**
+- Adds ~1-2 seconds to processing time
+- Not all use cases need visualization
+- Keeps API lightweight by default
+- Memory-efficient (chart deleted after encoding)
+
+### Testing:
+
+**CLI Test:**
+```bash
+python main.py sample_data/estimate.xlsx sample_data/actual.xlsx \
+  --project-name "Q4 Test" \
+  --generate-chart
+```
+
+**API Test:**
+```bash
+curl -X POST http://localhost:8080/analyze \
+  -F "estimate_file=@estimate.xlsx" \
+  -F "actual_file=@actual.xlsx" \
+  -F "generate_chart=true" \
+  | jq -r '.chart_image_base64' \
+  | base64 -d > chart.png
+```
+
+### Future Chart Enhancements:
+
+- **Additional chart types:**
+  - Pie chart for budget distribution
+  - Time-series for historical trends
+  - Waterfall chart for sequential variance
+  
+- **Customization options:**
+  - Color scheme selection
+  - Chart size/resolution
+  - Export format (PNG, SVG, PDF)
+  
+- **Interactive charts:**
+  - Plotly for web-based interactivity
+  - Zoom, pan, hover tooltips
+  - Export to HTML for dashboards
+
+- **Cloud Storage:**
+  - Upload charts to Google Cloud Storage
+  - Return public URL instead of base64
+  - Enable long-term chart archival
+
+---
+
+## Phase 8: Internal Test Script & GCP Setup Automation (2025-10-27)
+
+### Accomplishments
+
+**1. Automated GCP Setup Script**
+- Created `scripts/setup_gcp_credentials.sh` - fully automated GCP configuration
+- Enables APIs: Vertex AI, Firestore, Cloud Run
+- Creates service account with proper permissions
+- Generates and downloads service account key
+- Creates `.env` file with all credentials
+- Interactive prompts with validation
+
+**2. GCP Setup Guide**
+- Created `GCP_SETUP_GUIDE.md` - comprehensive setup documentation
+- Two setup options: service account (production) or user auth (development)
+- Step-by-step instructions with commands
+- Troubleshooting section for common errors
+- Cost estimates and security best practices
+- Links to relevant GCP documentation
+
+**3. Credential Testing Tool**
+- Created `scripts/test_credentials.py` - validates GCP setup
+- Tests .env file configuration
+- Verifies service account key access
+- Tests Vertex AI (Gemini) connectivity
+- Tests Firestore database access
+- Colored output for easy debugging
+- Helpful error messages with solutions
+
+**4. Internal Test Script**
+- Created `scripts/run_internal_test.py` - full end-to-end workflow tester
+- Generates synthetic construction project data (10 estimate items, 12 actual items)
+- Posts to `/analyze` API endpoint programmatically
+- Tests complete pipeline without browser/UI:
+  - Excel file generation
+  - API file upload
+  - Variance calculation
+  - AI narrative generation
+  - Chart creation
+  - Firestore memory storage
+- Pretty-prints JSON response with colored output
+- Saves results to timestamped JSON file
+- Server health check before testing
+- Helpful error messages if Flask not running
+
+**5. Web App API Endpoint**
+- Added `/analyze` endpoint to `web/app.py` for programmatic access
+- Added `/health` endpoint for health checks
+- Supports both UI and API modes in same Flask app
+- Consistent with `routes/api.py` interface
+
+**6. Test Results**
+- Successfully tested full pipeline:
+  - Total Estimate: $303,000
+  - Total Actual: $317,500
+  - Variance: +$14,500 (+4.8%)
+- AI insights generated with Gemini 1.5 Pro
+- Chart created (265KB base64 PNG)
+- Saved to Firestore (ID: PWbUDXyWvz72t7wqhsWB)
+- Total execution time: ~8-10 seconds
+
+### Technical Implementation
+
+**Script Architecture:**
+```python
+# run_internal_test.py workflow
+1. Check server health (curl /health)
+2. Generate synthetic Excel data
+   - Construction categories with realistic variances
+   - Over/under budget items
+   - Unbudgeted line items
+3. POST to /analyze with multipart/form-data
+   - Files: estimate.xlsx, actual.xlsx
+   - Data: project_name, save_memory, generate_chart
+4. Parse and display JSON response
+   - Narrative
+   - Summary statistics
+   - Chart (base64)
+   - Firestore ID
+   - Similar projects
+5. Save results to tmp/ directory
+```
+
+**GCP Setup Flow:**
+```bash
+setup_gcp_credentials.sh:
+1. Verify gcloud CLI installed
+2. Confirm/set GCP project ID
+3. Enable APIs (aiplatform, firestore, run)
+4. Create service account
+5. Grant IAM permissions
+6. Create and download key file
+7. Initialize Firestore database
+8. Generate .env file with credentials
+```
+
+### Files Modified/Created
+
+**New Files:**
+- `scripts/run_internal_test.py` - Internal test runner (342 lines)
+- `scripts/setup_gcp_credentials.sh` - GCP setup automation (191 lines)
+- `scripts/test_credentials.py` - Credential validator (258 lines)
+- `GCP_SETUP_GUIDE.md` - Setup documentation (279 lines)
+- `.env.example` - Environment template
+- `tmp/test_results_*.json` - Test output files
+
+**Modified Files:**
+- `web/app.py` - Added `/analyze` and `/health` endpoints
+- `.gitignore` - Added *-key.json patterns
+- `REVIEW_FINDINGS.md` - Added test results section
+
+### Environment Configuration
+
+**`.env` Structure:**
+```bash
+# GCP Configuration
+GCP_PROJECT_ID=estimator-assistant-mcp
+GCP_REGION=us-central1
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json
+
+# Flask Configuration
+SECRET_KEY=<generated-random-key>
+FLASK_ENV=development
+PORT=8080
+
+# Service Configuration
+SERVICE_NAME=estimate-insight-agent
+```
+
+### Security Measures
+
+1. **Credential Protection:**
+   - Service account keys never committed to git
+   - `.env` file excluded via `.gitignore`
+   - Keys stored outside project directory option
+   - Automated `.gitignore` updates
+
+2. **IAM Roles:**
+   - Vertex AI Admin (roles/aiplatform.admin)
+   - Cloud Datastore User (roles/datastore.user)
+   - Principle of least privilege
+
+3. **Best Practices:**
+   - Documented key rotation procedures
+   - Warning messages about credential security
+   - Separate dev/prod service accounts recommended
+
+### Testing & Validation
+
+**Test Coverage:**
+✅ GCP API enablement
+✅ Service account creation
+✅ IAM permission grants
+✅ Firestore database initialization
+✅ Credential file validation
+✅ Vertex AI connectivity
+✅ End-to-end analysis pipeline
+✅ Chart generation
+✅ Memory persistence
+✅ JSON response structure
+
+**Performance Metrics:**
+- Setup script: ~2-3 minutes (first time)
+- Credential test: ~5-10 seconds
+- Internal test: ~8-10 seconds
+- API response time: <120 seconds
+
+### Documentation Updates
+
+1. **GCP_SETUP_GUIDE.md:**
+   - Complete setup walkthrough
+   - Two authentication methods
+   - Troubleshooting guide
+   - Cost estimates
+   - Security recommendations
+
+2. **REVIEW_FINDINGS.md:**
+   - Added Internal Test Results section
+   - Performance benchmarks
+   - Test coverage details
+   - Usage instructions
+
+### Developer Experience
+
+**Quick Start Commands:**
+```bash
+# Automated GCP setup
+./scripts/setup_gcp_credentials.sh
+
+# Test credentials
+python3 scripts/test_credentials.py
+
+# Run internal test
+python3 scripts/run_internal_test.py
+```
+
+**Benefits:**
+- One-command GCP setup
+- Automated credential validation
+- No manual console clicking required
+- Clear error messages
+- Reproducible configuration
+
+### Future Enhancements
+
+**Testing:**
+- Add unit tests for individual components
+- Add integration tests with mocked GCP services
+- Add load testing for API endpoint
+- Add automated regression testing
+
+**Monitoring:**
+- Add application performance monitoring
+- Add cost tracking alerts
+- Add error rate monitoring
+- Add usage analytics
+
+**CI/CD:**
+- Add GitHub Actions for automated testing
+- Add automated deployment on merge
+- Add environment promotion workflows
+- Add automated security scanning
+
+### Lessons Learned
+
+1. **Automation is Key:**
+   - Manual GCP setup is error-prone
+   - Automated scripts ensure consistency
+   - Documentation alone isn't enough
+
+2. **Testing Without UI:**
+   - Internal test script valuable for CI/CD
+   - Faster iteration than manual testing
+   - Better for debugging API issues
+
+3. **Developer Experience:**
+   - Clear error messages save time
+   - Health checks prevent confusion
+   - Colored output improves readability
+
+4. **Security First:**
+   - Credential protection must be automatic
+   - `.gitignore` is critical
+   - Documentation must emphasize security
+
+### Status
+
+**System State:** ✅ **FULLY OPERATIONAL**
+
+All components tested and verified:
+- ✅ GCP credentials configured
+- ✅ Vertex AI accessible
+- ✅ Firestore operational
+- ✅ Web UI functional
+- ✅ API endpoint responding
+- ✅ Internal test passing
+- ✅ End-to-end pipeline working
+
+**Ready for:**
+- Production deployment to Cloud Run
+- Integration with external systems
+- User testing and feedback
+- Feature expansion
+

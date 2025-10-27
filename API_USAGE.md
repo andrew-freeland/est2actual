@@ -69,6 +69,7 @@ Analyze estimate vs actual Excel files.
   - `project_name` (optional): Name of the project (default: "Unnamed Project")
   - `save_memory` (optional): "true" to store in Firestore (default: "false")
   - `quick` (optional): "true" to skip Gemini and use quick summary (default: "false")
+  - `generate_chart` (optional): "true" to generate variance bar chart (default: "false")
 
 **Response (Success):**
 ```json
@@ -104,7 +105,8 @@ Analyze estimate vs actual Excel files.
   ],
   "pattern_detection_enabled": true,
   "similar_projects_count": 2,
-  "memory_id": "abc123xyz"
+  "memory_id": "abc123xyz",
+  "chart_image_base64": "iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsW5JAAA..."
 }
 ```
 
@@ -172,6 +174,15 @@ curl -X POST http://localhost:8080/analyze \
 curl http://localhost:8080/history/Q4%20Campaign
 ```
 
+**Analyze with Chart Generation:**
+```bash
+curl -X POST http://localhost:8080/analyze \
+  -F "estimate_file=@estimate.xlsx" \
+  -F "actual_file=@actual.xlsx" \
+  -F "project_name=Q4 Campaign" \
+  -F "generate_chart=true"
+```
+
 ### Using Python `requests`
 
 ```python
@@ -196,6 +207,14 @@ with open('estimate.xlsx', 'rb') as est, open('actual.xlsx', 'rb') as act:
     if result['success']:
         print(f"Narrative: {result['narrative']}")
         print(f"Total Variance: ${result['summary']['total_variance']:,.2f}")
+        
+        # If chart was generated, save it
+        if 'chart_image_base64' in result:
+            import base64
+            chart_data = base64.b64decode(result['chart_image_base64'])
+            with open('variance_chart.png', 'wb') as f:
+                f.write(chart_data)
+            print("Chart saved to: variance_chart.png")
     else:
         print(f"Error: {result['error']}")
 
@@ -215,6 +234,9 @@ formData.append('actual_file', actualFileInput.files[0]);
 formData.append('project_name', 'Q4 Campaign');
 formData.append('save_memory', 'true');
 
+// Optional: enable chart generation
+formData.append('generate_chart', 'true');
+
 const response = await fetch('http://localhost:8080/analyze', {
   method: 'POST',
   body: formData
@@ -225,6 +247,13 @@ const result = await response.json();
 if (result.success) {
   console.log('Narrative:', result.narrative);
   console.log('Variance:', result.summary.total_variance);
+  
+  // If chart was generated, display it
+  if (result.chart_image_base64) {
+    const img = document.createElement('img');
+    img.src = `data:image/png;base64,${result.chart_image_base64}`;
+    document.body.appendChild(img);
+  }
 }
 
 // Get history

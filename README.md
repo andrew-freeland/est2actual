@@ -16,6 +16,7 @@ est2actual/
 ├── parsers/              # Excel ingestion & dataframe comparison
 ├── report/               # Gemini-powered narrative generation
 ├── memory/               # Firestore storage with embeddings
+├── visuals/              # Chart generation (matplotlib/seaborn)
 ├── routes/               # Flask API routes (for Cloud Run)
 ├── cloud/                # Cloud Run deployment utilities
 └── main.py               # CLI runner
@@ -57,6 +58,28 @@ cp .env.example .env
 # Edit .env with your GCP_PROJECT_ID
 ```
 
+### Running the Web UI (Recommended)
+
+The easiest way to use the system is through the beautiful web interface:
+
+```bash
+# Development mode
+python web/app.py
+
+# Production mode
+gunicorn web.app:app --bind 0.0.0.0:8080
+
+# Then visit http://localhost:8080 in your browser
+```
+
+**Features:**
+- 🎨 Beautiful Tailwind CSS interface
+- 📊 Drag-and-drop file upload
+- 🤖 Real-time AI analysis with Gemini
+- 📈 Interactive charts and visualizations
+- 🧠 Pattern detection from memory
+- 📋 Detailed variance breakdowns
+
 ### Running as CLI
 
 ```bash
@@ -68,6 +91,15 @@ python main.py estimate.xlsx actual.xlsx --project-name "Q4 Marketing Campaign"
 
 # Save to Firestore memory
 python main.py estimate.xlsx actual.xlsx --project-name "Q4 Campaign" --save-memory
+
+# Generate variance bar chart
+python main.py estimate.xlsx actual.xlsx --project-name "Q4 Campaign" --generate-chart
+
+# All features combined
+python main.py estimate.xlsx actual.xlsx \
+  --project-name "Q4 Campaign" \
+  --save-memory \
+  --generate-chart
 ```
 
 ### Running as API
@@ -85,6 +117,13 @@ curl -X POST http://localhost:8080/analyze \
   -F "actual_file=@actual.xlsx" \
   -F "project_name=Q4 Campaign" \
   -F "save_memory=true"
+
+# Test with chart generation
+curl -X POST http://localhost:8080/analyze \
+  -F "estimate_file=@estimate.xlsx" \
+  -F "actual_file=@actual.xlsx" \
+  -F "project_name=Q4 Campaign" \
+  -F "generate_chart=true"
 ```
 
 **📖 Full API documentation**: See [API_USAGE.md](API_USAGE.md)
@@ -114,25 +153,34 @@ When you use `--save-memory`, the system:
 
 ## 🌐 Deploying to Cloud Run
 
+The web UI deploys seamlessly to Cloud Run, giving you a production-ready hosted application.
+
 ### Quick Deploy
 
 ```bash
-# Automated deployment
+# Automated deployment (includes web UI + API)
 ./cloud/deploy.sh
 ```
+
+This deploys the complete web interface with:
+- Beautiful upload form at `/`
+- Results viewer with charts
+- Pattern exploration at `/patterns`
+- REST API at `/analyze`
 
 ### Manual Deployment
 
 ```bash
 # Build and deploy
 gcloud builds submit --tag gcr.io/YOUR-PROJECT-ID/est2actual
-gcloud run deploy est2actual \
+gcloud run deploy estimate-insight-agent \
   --image gcr.io/YOUR-PROJECT-ID/est2actual \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars "GCP_PROJECT_ID=YOUR-PROJECT-ID" \
+  --set-env-vars "GCP_PROJECT_ID=YOUR-PROJECT-ID,FLASK_ENV=production" \
   --memory 1Gi \
+  --cpu 2 \
   --timeout 300
 ```
 
@@ -140,14 +188,17 @@ gcloud run deploy est2actual \
 
 ```bash
 # Get service URL
-SERVICE_URL=$(gcloud run services describe est2actual \
+SERVICE_URL=$(gcloud run services describe estimate-insight-agent \
   --region us-central1 \
   --format="value(status.url)")
 
-# Test health check
-curl $SERVICE_URL/
+echo "Web UI: $SERVICE_URL"
+echo "Patterns: $SERVICE_URL/patterns"
 
-# Test analysis
+# Test via web browser (recommended)
+open $SERVICE_URL
+
+# Or test API endpoint
 curl -X POST $SERVICE_URL/analyze \
   -F "estimate_file=@estimate.xlsx" \
   -F "actual_file=@actual.xlsx" \
@@ -168,20 +219,34 @@ See [PROJECT_LOG.md](PROJECT_LOG.md) for architecture decisions and feature hist
 
 ## 🛠️ Usage Modes
 
-### Mode 1: CLI (Command Line)
-Best for local analysis, batch processing, scripted workflows
+### Mode 1: Web UI (Recommended)
+**Best for:** Interactive analysis, non-technical users, visual feedback
+```bash
+python web/app.py
+# Visit http://localhost:8080
+```
+
+**Features:**
+- Upload files through browser interface
+- View AI insights in formatted layout
+- Generate and view charts inline
+- Explore pattern history
+- Save results to memory with one click
+
+### Mode 2: CLI (Command Line)
+**Best for:** Local analysis, batch processing, scripted workflows
 ```bash
 python main.py estimate.xlsx actual.xlsx --save-memory
 ```
 
-### Mode 2: API (HTTP Server)
-Best for web apps, microservices, cloud deployment
+### Mode 3: REST API (HTTP Server)
+**Best for:** Integration with other apps, microservices, programmatic access
 ```bash
 gunicorn app:app --bind 0.0.0.0:8080
 ```
 
-### Mode 3: Docker
-Best for containerized deployments
+### Mode 4: Docker
+**Best for:** Containerized deployments, Cloud Run
 ```bash
 docker build -t est2actual .
 docker run -p 8080:8080 est2actual
@@ -189,21 +254,80 @@ docker run -p 8080:8080 est2actual
 
 **📖 Complete usage guide**: See [API_USAGE.md](API_USAGE.md)
 
-## 🎨 Extending
+## 📊 Chart Generation
 
-**Add charting:**
-- Create `report/generate_charts.py`
-- Use matplotlib or plotly
-- Export to images or HTML
+The system can generate variance visualizations as PNG charts:
+
+**CLI:**
+```bash
+python main.py estimate.xlsx actual.xlsx --generate-chart
+```
+
+**API:**
+```bash
+curl -X POST http://localhost:8080/analyze \
+  -F "estimate_file=@estimate.xlsx" \
+  -F "actual_file=@actual.xlsx" \
+  -F "generate_chart=true"
+```
+
+The API returns the chart as a base64-encoded image in the response:
+```json
+{
+  "success": true,
+  "chart_image_base64": "iVBORw0KGgoAAAANSUhEUg...",
+  ...
+}
+```
+
+## 🖥️ Web UI Workflow
+
+The web interface provides a complete end-to-end experience:
+
+### 1. Upload
+- Visit the homepage
+- Enter project name
+- Upload estimate and actual Excel files
+- Choose options (save to memory, generate chart)
+
+### 2. Analysis
+- Files are processed automatically
+- AI generates insights using Gemini
+- Charts are created in real-time
+- Similar past projects are retrieved from memory
+
+### 3. Results
+- View comprehensive analysis dashboard with:
+  - Summary statistics (total variance, budget vs actual)
+  - AI-generated narrative explaining what happened
+  - Interactive variance chart (over/under budget by category)
+  - Detailed breakdown table
+  - Biggest over/under budget items
+- Save results and view memory confirmation
+
+### 4. Patterns
+- Explore all past projects at `/patterns`
+- See aggregate statistics
+- Compare trends across projects
+- Learn from historical patterns
+
+## 🎨 Extending
 
 **Add authentication:**
 - Add API key validation in `routes/api.py`
 - Use Cloud Run IAM for access control
+- Implement user sessions in `web/app.py`
 
 **Add pattern detection improvements:**
 - Migrate to Vertex AI Matching Engine
 - Implement vector similarity search
 - Build trend analysis dashboards
+
+**Enhance web UI:**
+- Add user accounts and project workspaces
+- Enable report exports (PDF, Excel)
+- Add real-time collaboration features
+- Implement custom dashboard layouts
 
 ## 📄 License
 

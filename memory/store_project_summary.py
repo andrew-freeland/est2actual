@@ -167,3 +167,35 @@ def get_project_history(
     
     return results
 
+
+def get_all_projects(
+    limit: int = 50,
+    collection_name: str = "project_insights"
+) -> List[Dict[str, Any]]:
+    """
+    Retrieve all project insights from Firestore.
+    
+    Args:
+        limit: Maximum number of projects to return
+        collection_name: Firestore collection name
+    
+    Returns:
+        List of all project insight documents
+    """
+    db = initialize_firestore()
+    
+    docs = db.collection(collection_name).order_by(
+        'created_at', direction=firestore.Query.DESCENDING
+    ).limit(limit).stream()
+    
+    results = []
+    for doc in docs:
+        data = doc.to_dict()
+        data['doc_id'] = doc.id
+        # Ensure summary key exists for compatibility
+        if 'variance_summary' in data:
+            data['summary'] = data['variance_summary']
+        results.append(data)
+    
+    return results
+

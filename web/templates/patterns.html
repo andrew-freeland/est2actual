@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learned Patterns - Estimate Insight</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-chart-line text-blue-600 text-2xl mr-3"></i>
+                    <a href="/" class="text-xl font-bold text-gray-900">Estimate Insight</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="flex items-center text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        New Analysis
+                    </a>
+                    <a href="/patterns" class="flex items-center text-blue-600 px-3 py-2 rounded-md text-sm font-medium font-semibold">
+                        <i class="fas fa-chart-bar mr-2"></i>
+                        View Patterns
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <!-- Header -->
+        <div class="mb-8 fade-in">
+            <h1 class="text-4xl font-extrabold text-gray-900 mb-2">Learned Patterns</h1>
+            <p class="text-gray-600">Historical insights from all analyzed projects</p>
+        </div>
+
+        <!-- Summary Statistics -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 fade-in">
+            <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-sm font-medium text-gray-600">Total Projects</div>
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-folder-open text-blue-600"></i>
+                    </div>
+                </div>
+                <div class="text-3xl font-bold text-gray-900">{{ stats.total_projects }}</div>
+                <div class="text-xs text-gray-500 mt-2">Analyzed in memory</div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-sm font-medium text-gray-600">Over Budget</div>
+                    <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-arrow-trend-up text-red-600"></i>
+                    </div>
+                </div>
+                <div class="text-3xl font-bold text-red-600">{{ stats.over_budget_count }}</div>
+                <div class="text-xs text-gray-500 mt-2">Projects exceeded estimates</div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-sm font-medium text-gray-600">Under Budget</div>
+                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-arrow-trend-down text-green-600"></i>
+                    </div>
+                </div>
+                <div class="text-3xl font-bold text-green-600">{{ stats.under_budget_count }}</div>
+                <div class="text-xs text-gray-500 mt-2">Projects came in under</div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-sm font-medium text-gray-600">Avg Variance</div>
+                    <div class="w-10 h-10 {% if stats.avg_variance > 0 %}bg-red-100{% else %}bg-green-100{% endif %} rounded-lg flex items-center justify-center">
+                        <i class="fas fa-chart-line {% if stats.avg_variance > 0 %}text-red-600{% else %}text-green-600{% endif %}"></i>
+                    </div>
+                </div>
+                <div class="text-3xl font-bold {% if stats.avg_variance > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                    ${{ "{:,.0f}".format(stats.avg_variance) }}
+                </div>
+                <div class="text-xs text-gray-500 mt-2">Across all projects</div>
+            </div>
+        </div>
+
+        {% if projects %}
+        <!-- Projects List -->
+        <div class="space-y-6 fade-in">
+            {% for project in projects %}
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition border border-gray-200">
+                <div class="border-l-4 {% if project.summary.total_variance > 0 %}border-red-500{% else %}border-green-500{% endif %} p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-900">{{ project.project_name }}</h3>
+                            {% if project.created_at %}
+                            <p class="text-sm text-gray-500">
+                                Analyzed: {{ project.created_at.strftime('%B %d, %Y at %I:%M %p') if project.created_at else 'Unknown date' }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold {% if project.summary.total_variance > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                                ${{ "{:,.0f}".format(project.summary.total_variance) }}
+                            </div>
+                            <div class="text-sm text-gray-600">
+                                {{ "{:.1f}".format(project.summary.total_variance_pct) }}% variance
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mini Summary -->
+                    <div class="grid grid-cols-3 gap-4 mb-4">
+                        <div class="text-center p-3 bg-blue-50 rounded">
+                            <div class="text-xs text-gray-600 mb-1">Estimated</div>
+                            <div class="text-lg font-semibold text-blue-600">
+                                ${{ "{:,.0f}".format(project.summary.total_estimated) }}
+                            </div>
+                        </div>
+                        <div class="text-center p-3 bg-purple-50 rounded">
+                            <div class="text-xs text-gray-600 mb-1">Actual</div>
+                            <div class="text-lg font-semibold text-purple-600">
+                                ${{ "{:,.0f}".format(project.summary.total_actual) }}
+                            </div>
+                        </div>
+                        <div class="text-center p-3 {% if project.summary.total_variance > 0 %}bg-red-50{% else %}bg-green-50{% endif %} rounded">
+                            <div class="text-xs text-gray-600 mb-1">Status</div>
+                            <div class="text-lg font-semibold {% if project.summary.total_variance > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                                {% if project.summary.total_variance > 0 %}
+                                    Over
+                                {% else %}
+                                    Under
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Narrative Preview -->
+                    {% if project.narrative %}
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h4 class="text-sm font-semibold text-gray-700 mb-2">AI Insight Preview:</h4>
+                        <p class="text-sm text-gray-600 line-clamp-3">
+                            {{ project.narrative[:300] }}{% if project.narrative|length > 300 %}...{% endif %}
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Metadata -->
+                    {% if project.doc_id %}
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <p class="text-xs text-gray-500">
+                            Document ID: <code class="bg-gray-100 px-2 py-1 rounded">{{ project.doc_id }}</code>
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-16 fade-in">
+            <div class="mx-auto w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+                <i class="fas fa-database text-blue-600 text-5xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">No Patterns Learned Yet</h2>
+            <p class="text-gray-600 mb-6">
+                Start analyzing projects with the "Save to Memory" option enabled to build pattern intelligence.
+            </p>
+            <a href="/" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition">
+                <i class="fas fa-plus-circle mr-2"></i>
+                Analyze Your First Project
+            </a>
+        </div>
+        {% endif %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-16 bg-white border-t border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
+                <!-- About -->
+                <div>
+                    <div class="flex items-center mb-3">
+                        <i class="fas fa-chart-line text-blue-600 text-xl mr-2"></i>
+                        <span class="font-semibold text-gray-900">Profit Analysis Tool</span>
+                    </div>
+                    <p class="text-gray-600 text-sm">
+                        AI-powered cost variance analysis for construction professionals.
+                    </p>
+                </div>
+
+                <!-- Compatible With -->
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-900 mb-3">Compatible With</h3>
+                    <div class="space-y-2">
+                        <div class="flex items-center text-sm text-gray-600">
+                            <i class="fas fa-file-export text-blue-600 mr-2 text-xs"></i>
+                            <span>Buildertrend Exports</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-600">
+                            <i class="fas fa-file-invoice text-blue-600 mr-2 text-xs"></i>
+                            <span>QuickBooks Exports</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-600">
+                            <i class="fas fa-file-excel text-blue-600 mr-2 text-xs"></i>
+                            <span>Excel/CSV Files</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Links -->
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-900 mb-3">Navigation</h3>
+                    <ul class="space-y-2">
+                        <li><a href="/" class="text-gray-600 hover:text-blue-600 text-sm transition">Home</a></li>
+                        <li><a href="/patterns" class="text-gray-600 hover:text-blue-600 text-sm transition">View Patterns</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Technology & Copyright -->
+            <div class="border-t border-gray-200 pt-6">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div class="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                        <span>Powered by Google Vertex AI Gemini 1.5 Pro</span>
+                        <span class="hidden md:inline">•</span>
+                        <span>Cloud Run</span>
+                        <span class="hidden md:inline">•</span>
+                        <span>Firestore</span>
+                    </div>
+                    <p class="text-sm text-gray-500">
+                        © 2025 Builder's Business Partner LLC
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
+

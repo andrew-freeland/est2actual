@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Results - {{ project_name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse-soft {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/" class="text-2xl font-bold text-indigo-600">💡 Estimate Insight</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">
+                        ← New Analysis
+                    </a>
+                    <a href="/patterns" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">
+                        📊 View Patterns
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <!-- Success Banner -->
+        <div class="mb-8 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-lg shadow-md slide-in flex items-center">
+            <span class="text-2xl mr-3">✅</span>
+            <div>
+                <p class="font-bold">Analysis Complete!</p>
+                <p class="text-sm">Your variance analysis has been generated successfully.</p>
+            </div>
+        </div>
+
+        <!-- Project Header -->
+        <div class="mb-8 slide-in">
+            <h1 class="text-4xl font-extrabold text-gray-900 mb-2">{{ project_name }}</h1>
+            <p class="text-gray-600">Estimate vs. Actual Cost Analysis</p>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 slide-in">
+            <!-- Total Variance -->
+            <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 {% if summary.total_variance > 0 %}border-red-500{% else %}border-green-500{% endif %}">
+                <div class="text-sm font-medium text-gray-600 mb-1">Total Variance</div>
+                <div class="text-3xl font-bold {% if summary.total_variance > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                    ${{ "{:,.0f}".format(summary.total_variance) }}
+                </div>
+                <div class="text-xs text-gray-500 mt-2">
+                    {{ "{:.1f}".format(summary.total_variance_pct) }}%
+                    {% if summary.total_variance > 0 %}
+                        <span class="text-red-600">over budget</span>
+                    {% else %}
+                        <span class="text-green-600">under budget</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Total Estimated -->
+            <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
+                <div class="text-sm font-medium text-gray-600 mb-1">Total Estimated</div>
+                <div class="text-3xl font-bold text-blue-600">
+                    ${{ "{:,.0f}".format(summary.total_estimated) }}
+                </div>
+                <div class="text-xs text-gray-500 mt-2">Original budget</div>
+            </div>
+
+            <!-- Total Actual -->
+            <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-purple-500">
+                <div class="text-sm font-medium text-gray-600 mb-1">Total Actual</div>
+                <div class="text-3xl font-bold text-purple-600">
+                    ${{ "{:,.0f}".format(summary.total_actual) }}
+                </div>
+                <div class="text-xs text-gray-500 mt-2">Final spend</div>
+            </div>
+
+            <!-- Categories -->
+            <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-indigo-500">
+                <div class="text-sm font-medium text-gray-600 mb-1">Categories</div>
+                <div class="text-3xl font-bold text-indigo-600">
+                    {{ variance_data|length }}
+                </div>
+                <div class="text-xs text-gray-500 mt-2">Line items analyzed</div>
+            </div>
+        </div>
+
+        <!-- Memory Status & Pattern Detection -->
+        {% if memory_id %}
+        <div class="mb-8 bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded-lg shadow-md slide-in">
+            <div class="flex items-start">
+                <span class="text-2xl mr-3">🧠</span>
+                <div>
+                    <p class="font-bold">Saved to Memory</p>
+                    <p class="text-sm">Analysis ID: <code class="bg-blue-200 px-2 py-1 rounded">{{ memory_id }}</code></p>
+                    {% if pattern_detection_enabled %}
+                    <p class="text-sm mt-1">
+                        Pattern detection enabled: Found {{ similar_projects_count }} similar past project(s)
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- AI Insight Section -->
+        <div class="bg-white rounded-lg shadow-xl overflow-hidden mb-8 slide-in">
+            <div class="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4 flex items-center">
+                <span class="text-3xl mr-3">🤖</span>
+                <h2 class="text-2xl font-bold text-white">AI-Generated Insight</h2>
+            </div>
+            
+            <div class="p-8">
+                <div class="prose prose-lg max-w-none">
+                    <div class="text-gray-800 leading-relaxed whitespace-pre-line">{{ narrative }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Visualization -->
+        {% if chart_image_base64 %}
+        <div class="bg-white rounded-lg shadow-xl overflow-hidden mb-8 slide-in">
+            <div class="bg-gradient-to-r from-purple-500 to-pink-600 px-6 py-4 flex items-center">
+                <span class="text-3xl mr-3">📊</span>
+                <h2 class="text-2xl font-bold text-white">Variance Visualization</h2>
+            </div>
+            
+            <div class="p-8">
+                <img 
+                    src="data:image/png;base64,{{ chart_image_base64 }}" 
+                    alt="Variance Chart" 
+                    class="w-full rounded-lg shadow-md"
+                >
+                <p class="text-sm text-gray-500 mt-4 text-center">
+                    Red bars indicate over budget, green bars indicate under budget
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Variance Data Table -->
+        <div class="bg-white rounded-lg shadow-xl overflow-hidden mb-8 slide-in">
+            <div class="bg-gradient-to-r from-gray-700 to-gray-900 px-6 py-4 flex items-center">
+                <span class="text-3xl mr-3">📋</span>
+                <h2 class="text-2xl font-bold text-white">Detailed Breakdown</h2>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Category
+                            </th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Estimated
+                            </th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actual
+                            </th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Variance ($)
+                            </th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Variance (%)
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for row in variance_data %}
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {{ row.Category }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">
+                                ${{ "{:,.2f}".format(row.Estimated) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">
+                                ${{ "{:,.2f}".format(row.Actual) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold
+                                {% if row.Variance > 0 %}text-red-600{% elif row.Variance < 0 %}text-green-600{% else %}text-gray-600{% endif %}">
+                                ${{ "{:,.2f}".format(row.Variance) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right
+                                {% if row['Variance_%'] > 0 %}text-red-600{% elif row['Variance_%'] < 0 %}text-green-600{% else %}text-gray-600{% endif %}">
+                                {{ "{:.1f}".format(row['Variance_%']) }}%
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="bg-gray-100 font-bold">
+                        <tr>
+                            <td class="px-6 py-4 text-sm text-gray-900">TOTAL</td>
+                            <td class="px-6 py-4 text-sm text-gray-900 text-right">
+                                ${{ "{:,.2f}".format(summary.total_estimated) }}
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-900 text-right">
+                                ${{ "{:,.2f}".format(summary.total_actual) }}
+                            </td>
+                            <td class="px-6 py-4 text-sm text-right
+                                {% if summary.total_variance > 0 %}text-red-600{% elif summary.total_variance < 0 %}text-green-600{% else %}text-gray-600{% endif %}">
+                                ${{ "{:,.2f}".format(summary.total_variance) }}
+                            </td>
+                            <td class="px-6 py-4 text-sm text-right
+                                {% if summary.total_variance_pct > 0 %}text-red-600{% elif summary.total_variance_pct < 0 %}text-green-600{% else %}text-gray-600{% endif %}">
+                                {{ "{:.1f}".format(summary.total_variance_pct) }}%
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Highest Variance Categories -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 slide-in">
+            <!-- Biggest Over-Budget -->
+            {% if summary.biggest_overrun %}
+            <div class="bg-white rounded-lg shadow-lg p-6 border-t-4 border-red-500">
+                <h3 class="text-lg font-bold text-red-600 mb-4 flex items-center">
+                    <span class="text-2xl mr-2">📈</span>
+                    Biggest Over-Budget
+                </h3>
+                <div class="space-y-2">
+                    <div class="text-2xl font-bold text-gray-900">{{ summary.biggest_overrun.Category }}</div>
+                    <div class="text-3xl font-bold text-red-600">
+                        +${{ "{:,.0f}".format(summary.biggest_overrun.Variance) }}
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        {{ "{:.1f}".format(summary.biggest_overrun['Variance_%']) }}% over estimate
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Biggest Under-Budget -->
+            {% if summary.biggest_underrun %}
+            <div class="bg-white rounded-lg shadow-lg p-6 border-t-4 border-green-500">
+                <h3 class="text-lg font-bold text-green-600 mb-4 flex items-center">
+                    <span class="text-2xl mr-2">📉</span>
+                    Biggest Under-Budget
+                </h3>
+                <div class="space-y-2">
+                    <div class="text-2xl font-bold text-gray-900">{{ summary.biggest_underrun.Category }}</div>
+                    <div class="text-3xl font-bold text-green-600">
+                        ${{ "{:,.0f}".format(summary.biggest_underrun.Variance) }}
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        {{ "{:.1f}".format(summary.biggest_underrun['Variance_%']) }}% under estimate
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-center space-x-4 mb-8 slide-in">
+            <a href="/" class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition">
+                🔄 Analyze Another Project
+            </a>
+            <a href="/patterns" class="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 transition">
+                📊 View All Patterns
+            </a>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-16 bg-white border-t border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <p class="text-center text-gray-500 text-sm">
+                Powered by Google Vertex AI Gemini 1.5 Pro | Cloud Run | Firestore
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Add print functionality
+        window.onload = function() {
+            // Optional: Add print button dynamically
+            console.log('Results page loaded successfully');
+        };
+    </script>
+</body>
+</html>
+

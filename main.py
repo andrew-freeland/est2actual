@@ -3,7 +3,13 @@
 Estimate Insight Agent Pro - Main Runner
 
 Usage:
-    python main.py <estimate.xlsx> <actual.xlsx> [--project-name "Project Name"] [--save-memory]
+    python main.py <estimate.xlsx> <actual.xlsx> [OPTIONS]
+
+Options:
+    --project-name "Name"    Name of the project being analyzed
+    --save-memory            Save insight to Firestore memory
+    --quick                  Generate quick summary without calling Gemini
+    --generate-chart         Generate variance bar chart visualization
 """
 
 import argparse
@@ -29,6 +35,7 @@ from report.generate_summary import (
     generate_quick_summary
 )
 from memory.store_project_summary import store_project_insight, retrieve_similar_projects
+from visuals.generate_chart import generate_variance_bar_chart
 
 
 def main():
@@ -43,6 +50,8 @@ def main():
                        help='Save insight to Firestore memory')
     parser.add_argument('--quick', action='store_true',
                        help='Generate quick summary without calling Gemini')
+    parser.add_argument('--generate-chart', action='store_true',
+                       help='Generate variance bar chart visualization')
     
     args = parser.parse_args()
     
@@ -154,6 +163,15 @@ def main():
             print(f"   ✓ Future analyses will learn from this project")
         except Exception as e:
             print(f"   ⚠️  Failed to save to memory: {str(e)}")
+    
+    # Step 7: Generate chart (optional)
+    if args.generate_chart:
+        print("📊 Generating variance chart...")
+        try:
+            chart_path = generate_variance_bar_chart(variance_df, args.project_name)
+            print(f"   ✓ Chart saved to: {chart_path}")
+        except Exception as e:
+            print(f"   ⚠️  Failed to generate chart: {str(e)}")
     
     print()
     print("✅ Analysis complete!")

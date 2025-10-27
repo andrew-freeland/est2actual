@@ -28,3 +28,10 @@ test_*.py
 .gcloud/
 service-account.json
 
+
+# GCP Credentials
+*-key.json
+estimate-insight-key.json
+
+# Test output
+tmp/

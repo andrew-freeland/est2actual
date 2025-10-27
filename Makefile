@@ -1,7 +1,7 @@
 # Makefile for Estimate Insight Agent Pro
 # Simplifies common development tasks
 
-.PHONY: help install test-data demo demo-ai demo-full setup clean deploy api api-prod test-api
+.PHONY: help install test-data demo demo-ai demo-full demo-chart setup clean deploy api api-prod test-api
 
 help:
 	@echo "Estimate Insight Agent Pro - Available Commands"
@@ -14,6 +14,7 @@ help:
 	@echo "  make demo         - Run quick demo (no AI)"
 	@echo "  make demo-ai      - Run demo with Gemini insights"
 	@echo "  make demo-full    - Run demo with AI + memory storage"
+	@echo "  make demo-chart   - Run demo with chart generation"
 	@echo ""
 	@echo "API Commands:"
 	@echo "  make api          - Run API server (development)"
@@ -57,6 +58,14 @@ demo-full: test-data
 	python main.py sample_data/estimate.xlsx sample_data/actual.xlsx \
 		--project-name "Sample Project" \
 		--save-memory
+
+demo-chart: test-data
+	@echo "📊 Running demo with chart generation..."
+	@echo ""
+	python main.py sample_data/estimate.xlsx sample_data/actual.xlsx \
+		--project-name "Sample Project" \
+		--quick \
+		--generate-chart
 
 api:
 	@echo "🚀 Starting API server (development mode)..."

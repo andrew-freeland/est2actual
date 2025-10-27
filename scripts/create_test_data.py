@@ -35,4 +35,7 @@ print(f"   📄 {actual_path}")
 print()
 print("Run the analysis:")
 print(f"   python main.py {estimate_path} {actual_path} --project-name 'Sample Project' --quick")
+print()
+print("Generate with chart:")
+print(f"   python main.py {estimate_path} {actual_path} --project-name 'Sample Project' --quick --generate-chart")
 

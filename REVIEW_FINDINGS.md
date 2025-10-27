@@ -336,6 +336,59 @@ This codebase is **production-ready** for CLI usage and can be deployed to Cloud
 
 ---
 
+## Internal Test Results (2025-10-27)
+
+### Test Execution: `scripts/run_internal_test.py`
+
+**✅ Full End-to-End Pipeline Verified**
+
+```
+Test Configuration:
+- Project Name: InternalTest
+- Test Data: 10 estimate items, 12 actual items
+- Total Estimate: $303,000.00
+- Total Actual: $317,500.00
+- Variance: +$14,500.00 (+4.8%)
+
+Results:
+✅ API endpoint responding (200 OK)
+✅ AI insights generated (Gemini 1.5 Pro)
+✅ Chart created (265KB base64 PNG)
+✅ Saved to Firestore (ID: PWbUDXyWvz72t7wqhsWB)
+✅ Results saved to tmp/test_results_20251026_223810.json
+
+Performance:
+- Total execution time: ~8-10 seconds
+- API response time: <2 minutes (within timeout)
+```
+
+**Test Coverage:**
+1. ✅ Synthetic data generation
+2. ✅ File upload via multipart/form-data
+3. ✅ Excel parsing and variance calculation
+4. ✅ Gemini AI narrative generation
+5. ✅ Chart visualization (base64 encoding)
+6. ✅ Firestore memory persistence
+7. ✅ JSON response structure validation
+
+**Script Features:**
+- Colored terminal output for readability
+- Automatic server health check
+- Helpful error messages
+- Results saved to file for review
+- Works without browser/UI
+
+**Usage:**
+```bash
+# Start Flask server
+python3 web/app.py
+
+# Run test (separate terminal)
+python3 scripts/run_internal_test.py
+```
+
+---
+
 **Signed**: AI Code Reviewer  
 **Grade**: 9.5/10 - Excellent Work! 🎉
 

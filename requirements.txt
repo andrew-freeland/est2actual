@@ -13,3 +13,7 @@ gunicorn==21.2.0
 # Utilities
 python-dotenv==1.0.0
 
+# Visualization
+matplotlib==3.8.2
+seaborn==0.13.0
+

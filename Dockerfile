@@ -30,7 +30,9 @@ ENV PORT=8080
 # Expose port for Cloud Run
 EXPOSE 8080
 
-# Run as API with gunicorn (production mode)
+# Run web UI with gunicorn (production mode)
+# The web UI integrates both the upload form and the backend API
+# For API-only mode, override with: CMD ["gunicorn", "app:app", ...]
 # For CLI mode, override with: docker run ... python main.py [args]
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "--timeout", "300"]
+CMD ["gunicorn", "web.app:app", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "--timeout", "300"]
 
