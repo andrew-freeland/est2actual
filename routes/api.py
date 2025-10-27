@@ -123,7 +123,8 @@ def analyze_files(estimate_path: str, actual_path: str,
                     variance_summary=summary_stats,
                     metadata={
                         'similar_projects_count': len(prior_summaries),
-                        'original_project_name': project_name  # Keep original for reference
+                        'original_project_name': project_name,  # Keep original for reference
+                        'category_mapping': category_mapping  # Include for PDF export
                     }
                 )
             except Exception as e:

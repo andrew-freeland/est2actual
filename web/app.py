@@ -183,6 +183,15 @@ def export_pdf(doc_id):
         
         project_data = doc.to_dict()
         
+        # Extract category_mapping from metadata if available
+        metadata = project_data.get('metadata', {})
+        if 'category_mapping' in metadata:
+            project_data['category_mapping'] = metadata['category_mapping']
+        
+        # Ensure summary key exists (for compatibility)
+        if 'variance_summary' in project_data and 'summary' not in project_data:
+            project_data['summary'] = project_data['variance_summary']
+        
         # Generate PDF
         pdf_buffer = generate_project_pdf(project_data)
         
