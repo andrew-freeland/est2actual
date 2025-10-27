@@ -102,7 +102,11 @@ def analyze_files(estimate_path: str, actual_path: str,
                     prior_summaries=prior_summaries
                 )
             except Exception as e:
-                print(f"Warning: Gemini failed, using quick summary: {str(e)}")
+                import traceback
+                print(f"Warning: Gemini failed, using quick summary.")
+                print(f"Error type: {type(e).__name__}")
+                print(f"Error message: {str(e)}")
+                print(f"Traceback:\n{traceback.format_exc()}")
                 narrative = generate_quick_summary(summary_stats)
         
         # Step 6: Save to memory (optional)

@@ -105,49 +105,47 @@ def _build_prompt(variance_data: str, summary_stats: Dict[str, Any],
         
         historical_context += "\n**Pattern Detection**: Look for recurring themes across these projects.\n"
     
-    prompt = f"""You are a senior financial analyst preparing an executive summary for a construction project cost analysis.
+    prompt = f"""You are writing a clear, easy-to-understand budget analysis report for a construction project. Your audience includes project managers and stakeholders who may not have deep financial expertise, so use plain English and avoid jargon.
 
 **PROJECT**: {project_name}
 
-**FINANCIAL SUMMARY**:
-- Total Estimated Budget: ${summary_stats['total_estimated']:,.2f}
-- Total Actual Spend: ${summary_stats['total_actual']:,.2f}
-- Net Variance: ${summary_stats['total_variance']:,.2f} ({summary_stats['total_variance_pct']:.1f}%)
-- Categories Over Budget: {summary_stats['over_budget_categories']}
-- Categories Under Budget: {summary_stats['under_budget_categories']}
+**BUDGET SUMMARY**:
+- Planned Budget: ${summary_stats['total_estimated']:,.2f}
+- Actual Spending: ${summary_stats['total_actual']:,.2f}
+- Difference: ${summary_stats['total_variance']:,.2f} ({summary_stats['total_variance_pct']:.1f}% {'over' if summary_stats['total_variance'] > 0 else 'under'} budget)
+- Items Over Budget: {summary_stats['over_budget_categories']}
+- Items Under Budget: {summary_stats['under_budget_categories']}
 
-**KEY VARIANCES**:
-- Largest Overrun: {summary_stats['biggest_overrun']['category']} (${summary_stats['biggest_overrun']['amount']:,.2f})
-- Largest Underrun: {summary_stats['biggest_underrun']['category']} (${summary_stats['biggest_underrun']['amount']:,.2f})
+**BIGGEST CHANGES**:
+- Largest Overrun: {summary_stats['biggest_overrun']['category']} (${summary_stats['biggest_overrun']['amount']:,.2f} more than planned)
+- Largest Savings: {summary_stats['biggest_underrun']['category']} (${abs(summary_stats['biggest_underrun']['amount']):,.2f} less than planned)
 
-**DETAILED LINE ITEMS**:
+**ALL LINE ITEMS**:
 {variance_data}
 {historical_context}
 ---
 
-**TASK**: Write a professional executive summary (300-500 words) analyzing this budget performance. Your response should be formatted as a well-structured business report with clear paragraphs.
+**YOUR TASK**: Write a clear 300-400 word summary that explains the budget results to non-financial readers. Use 4 paragraphs with plain English:
 
-**REQUIRED SECTIONS** (use clear paragraph breaks):
+**Paragraph 1 - What Happened:**
+Start with a simple, direct statement about whether the project was over or under budget and by how much. Explain what this means in practical terms - did the project cost more or less than expected?
 
-**Paragraph 1 - Executive Overview:**
-Open with a clear statement of overall project performance. State whether the project came in over or under budget, by how much, and provide immediate context on the financial impact.
+**Paragraph 2 - Why It Happened:**
+Explain the 2-3 biggest reasons for the budget difference. Use everyday language. Instead of "variance," say "went over" or "came in under." Instead of "cost drivers," say "the main reasons costs were higher/lower." Be specific about which items and how much.
 
-**Paragraph 2 - Cost Driver Analysis:**
-Identify and explain the 2-3 most significant cost variances. Be specific about which line items drove the budget performance. Explain what these categories represent and why they may have varied from estimates.
+**Paragraph 3 - What This Tells Us:**
+{("Looking at past similar projects, what patterns do you notice? " if prior_summaries else "")}What can we learn from this? Are there specific types of costs that are consistently hard to estimate? Were there unexpected challenges? Use simple explanations like "The team may have underestimated how long X would take" or "Prices for Y were higher than expected."
 
-**Paragraph 3 - Pattern Recognition & Root Causes:**
-{("Based on similar past projects, identify any recurring patterns or themes. " if prior_summaries else "")}Analyze potential root causes for the variances. Consider factors like: scope changes, market conditions, estimation accuracy, execution challenges, or external factors specific to the categories involved.
+**Paragraph 4 - What To Do Next Time:**
+Give 3-4 specific, practical suggestions for future projects. Write these as clear actions, like "Allow an extra 10% buffer for Foundation Work" or "Get more detailed quotes from subcontractors before setting the budget." Make these recommendations feel actionable and realistic.
 
-**Paragraph 4 - Actionable Recommendations:**
-Provide 3-4 specific, actionable recommendations for improving cost control on future projects. These should be directly tied to the variances observed and be practical for implementation.
-
-**STYLE GUIDELINES**:
-- Write in full sentences and well-formed paragraphs (not bullet points or lists)
-- Use professional business language suitable for executives
-- Be concise but thorough
-- Focus on insights and "why", not just repeating numbers
-- Use specific dollar amounts when discussing significant variances
-- Make it easy to read and understand at a glance
+**WRITING STYLE**:
+- Use conversational, professional language (as if explaining to a colleague)
+- Write complete paragraphs, not bullet points
+- Avoid financial jargon - say "went over budget" not "adverse variance"
+- Use specific dollar amounts to make it concrete
+- Keep sentences short and clear
+- Avoid passive voice - say "costs increased" not "an increase was experienced"
 
 Write your analysis now:
 """
@@ -156,36 +154,49 @@ Write your analysis now:
 
 def generate_quick_summary(summary_stats: Dict[str, Any]) -> str:
     """
-    Generate a quick text summary without calling Gemini (for testing/fallback).
+    Generate a clear, readable summary without calling Gemini (for testing/fallback).
     
     Args:
         summary_stats: Dictionary of summary statistics
     
     Returns:
-        Simple text summary
+        Formatted text summary in plain English
     """
-    if summary_stats['total_variance'] > 0:
-        status = "OVER BUDGET"
-    elif summary_stats['total_variance'] < 0:
-        status = "UNDER BUDGET"
-    else:
-        status = "ON BUDGET"
+    total_est = summary_stats['total_estimated']
+    total_act = summary_stats['total_actual']
+    variance = summary_stats['total_variance']
+    variance_pct = summary_stats['total_variance_pct']
     
-    summary = f"""
-Project Budget Analysis
-========================
+    # Determine status
+    if variance > 0:
+        status = "over budget"
+        status_emoji = "⚠️"
+    elif variance < 0:
+        status = "under budget"
+        status_emoji = "✅"
+    else:
+        status = "on budget"
+        status_emoji = "✅"
+    
+    # Build readable summary
+    summary = f"""PROJECT BUDGET SUMMARY
 
-Status: {status}
+Overall Performance: This project came in {status_emoji} {status} by ${abs(variance):,.2f} ({abs(variance_pct):.1f}%).
 
-Total Estimated: ${summary_stats['total_estimated']:,.2f}
-Total Actual: ${summary_stats['total_actual']:,.2f}
-Variance: ${summary_stats['total_variance']:,.2f} ({summary_stats['total_variance_pct']:.1f}%)
+Budget Overview:
+• Original Budget: ${total_est:,.2f}
+• Actual Spending: ${total_act:,.2f}
+• Difference: ${variance:+,.2f}
 
-Over Budget Categories: {summary_stats['over_budget_categories']}
-Under Budget Categories: {summary_stats['under_budget_categories']}
+Category Breakdown:
+• {summary_stats['over_budget_categories']} categories exceeded their budgets
+• {summary_stats['under_budget_categories']} categories came in under budget
 
-Biggest Overrun: {summary_stats['biggest_overrun']['category']} (${summary_stats['biggest_overrun']['amount']:,.2f})
-Biggest Underrun: {summary_stats['biggest_underrun']['category']} (${summary_stats['biggest_underrun']['amount']:,.2f})
+Key Findings:
+• Largest Cost Overrun: {summary_stats['biggest_overrun']['category']} was ${abs(summary_stats['biggest_overrun']['amount']):,.2f} over budget
+• Largest Cost Savings: {summary_stats['biggest_underrun']['category']} saved ${abs(summary_stats['biggest_underrun']['amount']):,.2f}
+
+{'This project exceeded the planned budget. Review the cost overruns to identify areas for better estimation in future projects.' if variance > 0 else 'This project came in under budget, which is positive. The cost savings may indicate effective management or conservative initial estimates.'}
 """
     return summary.strip()
 
