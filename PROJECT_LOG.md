@@ -190,3 +190,140 @@ User runs analysis with --save-memory
 - Add confidence scores for pattern detection
 - Allow user to query: "What patterns have you seen in marketing overruns?"
 
+---
+
+## 2025-10-27 (Late): RESTful API Layer Added
+
+### REST API Interface Implemented
+
+**Problem**: System only accessible via CLI - needed HTTP API for web integration.
+
+**Solution**: Added Flask-based REST API with full feature parity to CLI.
+
+**Changes Made:**
+
+1. **`routes/api.py`** (complete rewrite):
+   - Added `analyze_files()` function - core logic reusable by CLI and API
+   - `POST /analyze` endpoint - accepts file uploads, returns JSON
+   - `GET /history/<project_name>` endpoint - retrieves past analyses
+   - `GET /` health check endpoint
+   - File validation with 16MB limit
+   - Temporary file handling with `tempfile.TemporaryDirectory()`
+   - All parameters match CLI: `project_name`, `save_memory`, `quick`
+
+2. **`app.py`** (new file):
+   - Simple entry point for Flask app
+   - Imports app from `routes.api`
+   - Supports both development and production modes
+
+3. **`Dockerfile`** (updated):
+   - Changed default CMD to use gunicorn for production
+   - `CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8080"]`
+   - 2 workers, 4 threads per worker
+   - 300 second timeout for long-running analyses
+   - Still supports CLI override: `docker run ... python main.py`
+
+4. **`API_USAGE.md`** (new file):
+   - Comprehensive API documentation
+   - cURL examples for all endpoints
+   - Python requests examples
+   - JavaScript fetch examples
+   - Docker usage patterns
+   - Cloud Run deployment guide
+   - Performance benchmarks
+   - Troubleshooting guide
+
+5. **`README.md`** (updated):
+   - Added "Running as API" section
+   - Added Cloud Run deployment instructions
+   - Added usage modes comparison
+   - Links to API_USAGE.md
+
+### API Endpoints:
+
+```
+GET  /                           Health check
+POST /analyze                    Analyze Excel files (same as CLI)
+GET  /history/<project_name>     Get project history
+```
+
+### Request Format:
+
+```bash
+curl -X POST http://localhost:8080/analyze \
+  -F "estimate_file=@estimate.xlsx" \
+  -F "actual_file=@actual.xlsx" \
+  -F "project_name=Q4 Campaign" \
+  -F "save_memory=true"
+```
+
+### Response Format:
+
+```json
+{
+  "success": true,
+  "project_name": "Q4 Campaign",
+  "summary": { ... },
+  "narrative": "Full AI-generated insight...",
+  "variance_data": [ ... ],
+  "pattern_detection_enabled": true,
+  "similar_projects_count": 2,
+  "memory_id": "abc123"
+}
+```
+
+### Architecture Benefits:
+
+- **No code duplication**: Both CLI and API use `analyze_files()` function
+- **Stateless**: Uses temporary files, auto-cleaned after request
+- **Cloud-native**: Ready for Cloud Run with gunicorn
+- **Feature parity**: All CLI flags available as API parameters
+- **Type-safe**: Input validation for all parameters
+
+### Usage Patterns:
+
+**Development:**
+```bash
+python app.py  # Flask dev server on port 8080
+```
+
+**Production:**
+```bash
+gunicorn app:app --bind 0.0.0.0:8080 --workers 4
+```
+
+**Docker:**
+```bash
+docker build -t est2actual .
+docker run -p 8080:8080 -e GCP_PROJECT_ID=xxx est2actual
+```
+
+**Cloud Run:**
+```bash
+./cloud/deploy.sh  # Automatic deployment
+```
+
+### Performance:
+
+- Cold start: ~5-10 seconds (container startup)
+- Warm request: ~3-6 seconds (with Gemini)
+- Quick mode: ~0.5-1 second
+- Max file size: 16MB
+- Timeout: 300 seconds
+
+### Security:
+
+- File extension validation (.xlsx, .xls only)
+- Secure filename handling with `secure_filename()`
+- Temporary files auto-deleted after processing
+- No persistent storage of uploaded files
+- Optional: Add API key authentication (see API_USAGE.md)
+
+### Future Enhancements:
+
+- Add WebSocket support for real-time progress updates
+- Add batch analysis endpoint (multiple projects at once)
+- Add streaming response for large files
+- Add rate limiting for public deployments
+- Add OpenAPI/Swagger documentation
+

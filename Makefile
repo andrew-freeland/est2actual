@@ -1,18 +1,26 @@
 # Makefile for Estimate Insight Agent Pro
 # Simplifies common development tasks
 
-.PHONY: help install test-data demo demo-ai setup clean deploy
+.PHONY: help install test-data demo demo-ai demo-full setup clean deploy api api-prod test-api
 
 help:
 	@echo "Estimate Insight Agent Pro - Available Commands"
 	@echo "================================================"
 	@echo ""
+	@echo "CLI Commands:"
 	@echo "  make install      - Install Python dependencies"
 	@echo "  make setup        - Setup GCP resources"
 	@echo "  make test-data    - Generate sample Excel files"
 	@echo "  make demo         - Run quick demo (no AI)"
 	@echo "  make demo-ai      - Run demo with Gemini insights"
 	@echo "  make demo-full    - Run demo with AI + memory storage"
+	@echo ""
+	@echo "API Commands:"
+	@echo "  make api          - Run API server (development)"
+	@echo "  make api-prod     - Run API server (production with gunicorn)"
+	@echo "  make test-api     - Test API endpoints"
+	@echo ""
+	@echo "Deployment:"
 	@echo "  make deploy       - Deploy to Google Cloud Run"
 	@echo "  make clean        - Remove generated files"
 	@echo ""
@@ -49,6 +57,23 @@ demo-full: test-data
 	python main.py sample_data/estimate.xlsx sample_data/actual.xlsx \
 		--project-name "Sample Project" \
 		--save-memory
+
+api:
+	@echo "🚀 Starting API server (development mode)..."
+	@echo "Server will be available at http://localhost:8080"
+	@echo ""
+	python app.py
+
+api-prod:
+	@echo "🚀 Starting API server (production mode)..."
+	@echo "Server will be available at http://localhost:8080"
+	@echo ""
+	gunicorn app:app --bind 0.0.0.0:8080 --workers 2 --threads 4 --timeout 300
+
+test-api: test-data
+	@echo "🧪 Testing API endpoints..."
+	@echo ""
+	./test_api.sh
 
 deploy:
 	@echo "🚀 Deploying to Cloud Run..."

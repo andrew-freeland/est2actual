@@ -57,7 +57,7 @@ cp .env.example .env
 # Edit .env with your GCP_PROJECT_ID
 ```
 
-### Running Locally
+### Running as CLI
 
 ```bash
 # Basic usage (quick summary without AI)
@@ -69,6 +69,25 @@ python main.py estimate.xlsx actual.xlsx --project-name "Q4 Marketing Campaign"
 # Save to Firestore memory
 python main.py estimate.xlsx actual.xlsx --project-name "Q4 Campaign" --save-memory
 ```
+
+### Running as API
+
+```bash
+# Development mode
+python app.py
+
+# Production mode
+gunicorn app:app --bind 0.0.0.0:8080
+
+# Test the API
+curl -X POST http://localhost:8080/analyze \
+  -F "estimate_file=@estimate.xlsx" \
+  -F "actual_file=@actual.xlsx" \
+  -F "project_name=Q4 Campaign" \
+  -F "save_memory=true"
+```
+
+**📖 Full API documentation**: See [API_USAGE.md](API_USAGE.md)
 
 ## 📊 Excel File Format
 
@@ -95,7 +114,47 @@ When you use `--save-memory`, the system:
 
 ## 🌐 Deploying to Cloud Run
 
-_(Coming soon - see PROJECT_LOG.md for roadmap)_
+### Quick Deploy
+
+```bash
+# Automated deployment
+./cloud/deploy.sh
+```
+
+### Manual Deployment
+
+```bash
+# Build and deploy
+gcloud builds submit --tag gcr.io/YOUR-PROJECT-ID/est2actual
+gcloud run deploy est2actual \
+  --image gcr.io/YOUR-PROJECT-ID/est2actual \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars "GCP_PROJECT_ID=YOUR-PROJECT-ID" \
+  --memory 1Gi \
+  --timeout 300
+```
+
+### Test Deployment
+
+```bash
+# Get service URL
+SERVICE_URL=$(gcloud run services describe est2actual \
+  --region us-central1 \
+  --format="value(status.url)")
+
+# Test health check
+curl $SERVICE_URL/
+
+# Test analysis
+curl -X POST $SERVICE_URL/analyze \
+  -F "estimate_file=@estimate.xlsx" \
+  -F "actual_file=@actual.xlsx" \
+  -F "project_name=Production Test"
+```
+
+**📖 Full deployment guide**: See [API_USAGE.md](API_USAGE.md)
 
 ## 🔐 Required GCP Permissions
 
@@ -107,21 +166,44 @@ Your service account needs:
 
 See [PROJECT_LOG.md](PROJECT_LOG.md) for architecture decisions and feature history.
 
-## 🛠️ Extending
+## 🛠️ Usage Modes
+
+### Mode 1: CLI (Command Line)
+Best for local analysis, batch processing, scripted workflows
+```bash
+python main.py estimate.xlsx actual.xlsx --save-memory
+```
+
+### Mode 2: API (HTTP Server)
+Best for web apps, microservices, cloud deployment
+```bash
+gunicorn app:app --bind 0.0.0.0:8080
+```
+
+### Mode 3: Docker
+Best for containerized deployments
+```bash
+docker build -t est2actual .
+docker run -p 8080:8080 est2actual
+```
+
+**📖 Complete usage guide**: See [API_USAGE.md](API_USAGE.md)
+
+## 🎨 Extending
 
 **Add charting:**
 - Create `report/generate_charts.py`
 - Use matplotlib or plotly
 - Export to images or HTML
 
-**Add API:**
-- Create `routes/api.py` with Flask endpoints
-- Deploy to Cloud Run
+**Add authentication:**
+- Add API key validation in `routes/api.py`
+- Use Cloud Run IAM for access control
 
-**Add pattern detection:**
-- Enhance `memory/store_project_summary.py`
+**Add pattern detection improvements:**
+- Migrate to Vertex AI Matching Engine
 - Implement vector similarity search
-- Build trend analysis
+- Build trend analysis dashboards
 
 ## 📄 License
 

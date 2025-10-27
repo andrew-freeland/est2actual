@@ -30,7 +30,7 @@ ENV PORT=8080
 # Expose port for Cloud Run
 EXPOSE 8080
 
-# Run with gunicorn (we'll create app.py for Flask)
-# For now, this is a placeholder - update when Flask API is ready
-CMD ["python", "main.py"]
+# Run as API with gunicorn (production mode)
+# For CLI mode, override with: docker run ... python main.py [args]
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "--timeout", "300"]
 
