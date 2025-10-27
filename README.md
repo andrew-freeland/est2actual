@@ -4,7 +4,9 @@ AI-powered cost variance analysis system using **Google Vertex AI Gemini 1.5 Pro
 
 ## 🎯 What It Does
 
-1. **Accepts** two Excel files: estimated costs vs. actual costs
+1. **Accepts** Excel files in two formats:
+   - **Separate Files**: Upload estimate and actual cost files separately
+   - **Combined File**: Upload a single file with both budget and actual columns (e.g., "Revised Budget Costs" and "Actual Costs")
 2. **Analyzes** variance across budget categories using pandas
 3. **Generates** narrative insights explaining what happened using Gemini
 4. **Stores** project memory in Firestore for pattern detection over time
@@ -74,11 +76,14 @@ gunicorn web.app:app --bind 0.0.0.0:8080
 
 **Features:**
 - 🎨 Beautiful Tailwind CSS interface
-- 📊 Drag-and-drop file upload
+- 📊 Flexible file upload options:
+  - **Separate Files**: Upload estimate and actual files separately
+  - **Combined File**: Upload a single file with both budget and actual columns
 - 🤖 Real-time AI analysis with Gemini
 - 📈 Interactive charts and visualizations
 - 🧠 Pattern detection from memory
-- 📋 Detailed variance breakdowns
+- 📋 Detailed variance breakdowns with category matching
+- 📄 PDF export for comprehensive post-mortem reports
 
 ### Running as CLI
 
@@ -130,7 +135,12 @@ curl -X POST http://localhost:8080/analyze \
 
 ## 📊 Excel File Format
 
-Your Excel files should have at minimum:
+The system supports **two file formats**:
+
+### Format 1: Separate Files (Simple)
+Two separate files: one for estimates, one for actuals.
+
+**Minimum requirements:**
 - **Category column**: Item names (e.g., "Labor", "Materials", "Marketing")
 - **Amount column**: Numeric costs
 
@@ -142,7 +152,28 @@ Example:
 | Materials   | 25000   |
 | Marketing   | 15000   |
 
-The parser automatically detects column names like: `Category`, `Name`, `Item`, `Amount`, `Cost`, `Value`, etc.
+### Format 2: Combined File (Advanced)
+One file with multiple cost columns. Upload the **same file twice**.
+
+**Minimum requirements:**
+- **Category column**: Item names
+- **Budget column**: Contains "budget", "estimate", or "revised" in name
+- **Actual column**: Contains "actual", "spent", or "final" in name
+
+Example:
+
+| Category    | Revised Budget | Actual Costs |
+|-------------|----------------|--------------|
+| Labor       | 50000          | 55000        |
+| Materials   | 25000          | 22000        |
+| Marketing   | 15000          | 18000        |
+
+**📖 See [COMBINED_FORMAT_GUIDE.md](COMBINED_FORMAT_GUIDE.md) for detailed instructions**
+
+The parser automatically detects column names and intelligently selects:
+- Estimate columns: `Budget`, `Estimated`, `Revised Budget`, etc.
+- Actual columns: `Actual Costs`, `Spent`, `Final Cost`, etc.
+- Fallback: `Amount`, `Cost`, `Value`, `Price`, `Total`
 
 ## 🧠 Memory System
 
@@ -150,6 +181,25 @@ When you use `--save-memory`, the system:
 1. Saves the narrative and variance data to Firestore
 2. Generates embeddings using Vertex AI text-embedding-gecko
 3. Enables future pattern detection across similar projects
+
+## 💬 Feedback System
+
+The web UI includes an intelligent feedback system to continuously improve insights:
+
+**On Result Page (Detailed Feedback)**:
+- Expandable feedback form with arrow toggle
+- Thumbs up/down rating
+- Optional detailed comments
+- Helps identify which insights are most valuable
+
+**On Patterns Page (Quick Feedback)**:
+- Simple thumbs up/down buttons
+- One-click feedback on historical insights
+- Tracks satisfaction over time
+
+All feedback is stored in Firestore for analysis and future AI improvements. The system gracefully handles errors - feedback never breaks the application.
+
+**📖 See [FEEDBACK_QUICKSTART.md](FEEDBACK_QUICKSTART.md) for usage details**
 
 ## 🌐 Deploying to Cloud Run
 

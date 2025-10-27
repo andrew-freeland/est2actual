@@ -11,6 +11,7 @@ from pathlib import Path
 from flask import Flask, render_template, request, redirect, url_for, flash
 import tempfile
 from werkzeug.utils import secure_filename
+import pandas as pd  # For dataframe operations
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -52,29 +53,9 @@ def submit():
     """
     Handle form submission and process files.
     
-    Receives files from the form, saves them temporarily,
-    runs analysis, and redirects to results page.
+    Receives files from the form (either separate estimate/actual or combined),
+    saves them temporarily, runs analysis, and redirects to results page.
     """
-    # Validate files
-    if 'estimate_file' not in request.files:
-        flash('Please upload an estimate file', 'error')
-        return redirect(url_for('index'))
-    
-    if 'actual_file' not in request.files:
-        flash('Please upload an actual file', 'error')
-        return redirect(url_for('index'))
-    
-    estimate_file = request.files['estimate_file']
-    actual_file = request.files['actual_file']
-    
-    if estimate_file.filename == '' or actual_file.filename == '':
-        flash('Please select both files', 'error')
-        return redirect(url_for('index'))
-    
-    if not allowed_file(estimate_file.filename) or not allowed_file(actual_file.filename):
-        flash('Only .xlsx and .xls files are allowed', 'error')
-        return redirect(url_for('index'))
-    
     # Get form parameters
     project_name = request.form.get('project_name', 'Unnamed Project').strip()
     if not project_name:
@@ -82,36 +63,139 @@ def submit():
     
     save_memory = 'save_memory' in request.form
     generate_chart = 'generate_chart' in request.form
+    file_mode = request.form.get('file_mode', 'separate')
     
-    # Save files temporarily and run analysis
-    try:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            estimate_path = os.path.join(temp_dir, secure_filename(estimate_file.filename))
-            actual_path = os.path.join(temp_dir, secure_filename(actual_file.filename))
-            
-            estimate_file.save(estimate_path)
-            actual_file.save(actual_path)
-            
-            # Run analysis using the same backend logic as the API
-            result = analyze_files(
-                estimate_path,
-                actual_path,
-                project_name=project_name,
-                save_memory=save_memory,
-                quick_mode=False,  # Always use Gemini for web UI
-                generate_chart=generate_chart
-            )
-        
-        if not result.get('success'):
-            flash(f"Analysis failed: {result.get('error', 'Unknown error')}", 'error')
+    # Handle combined file mode
+    if file_mode == 'combined':
+        # Validate combined file
+        if 'combined_file' not in request.files:
+            flash('Please upload a combined file', 'error')
             return redirect(url_for('index'))
         
-        # Pass results to template
-        return render_template('result.html', **result)
+        combined_file = request.files['combined_file']
+        
+        if combined_file.filename == '':
+            flash('Please select a combined file', 'error')
+            return redirect(url_for('index'))
+        
+        if not allowed_file(combined_file.filename):
+            flash('Only .xlsx and .xls files are allowed', 'error')
+            return redirect(url_for('index'))
+        
+        # Save file temporarily and run analysis
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                combined_path = os.path.join(temp_dir, secure_filename(combined_file.filename))
+                combined_file.save(combined_path)
+                
+                # Parse combined file
+                from parsers.parse_combined_file import parse_combined_file
+                import traceback
+                
+                try:
+                    print(f"Parsing combined file: {combined_path}")
+                    estimate_df, actual_df, metadata = parse_combined_file(combined_path)
+                    
+                    print(f"✅ Parsed successfully!")
+                    print(f"   Estimate rows: {len(estimate_df)}")
+                    print(f"   Actual rows: {len(actual_df)}")
+                    print(f"   Metadata: {metadata}")
+                    
+                    # Save parsed dataframes to temporary Excel files
+                    estimate_temp = os.path.join(temp_dir, 'estimate_temp.xlsx')
+                    actual_temp = os.path.join(temp_dir, 'actual_temp.xlsx')
+                    
+                    estimate_df.to_excel(estimate_temp, index=False)
+                    actual_df.to_excel(actual_temp, index=False)
+                    
+                    print(f"Running analysis...")
+                    # Run analysis using the parsed files
+                    result = analyze_files(
+                        estimate_temp,
+                        actual_temp,
+                        project_name=project_name,
+                        save_memory=save_memory,
+                        quick_mode=False,  # Always use Gemini for web UI
+                        generate_chart=generate_chart
+                    )
+                    
+                    # Add metadata to result
+                    result['file_metadata'] = metadata
+                    print(f"✅ Analysis complete!")
+                    
+                except ValueError as e:
+                    print(f"ValueError during combined file parsing: {str(e)}")
+                    print(traceback.format_exc())
+                    flash(f'Combined file parsing failed: {str(e)}', 'error')
+                    return redirect(url_for('index'))
+                except Exception as e:
+                    print(f"Unexpected error during combined file processing: {str(e)}")
+                    print(traceback.format_exc())
+                    flash(f'Combined file processing error: {str(e)}', 'error')
+                    return redirect(url_for('index'))
+            
+            if not result.get('success'):
+                flash(f"Analysis failed: {result.get('error', 'Unknown error')}", 'error')
+                return redirect(url_for('index'))
+            
+            # Pass results to template
+            return render_template('result.html', **result)
+        
+        except Exception as e:
+            flash(f'An error occurred: {str(e)}', 'error')
+            return redirect(url_for('index'))
     
-    except Exception as e:
-        flash(f'An error occurred: {str(e)}', 'error')
-        return redirect(url_for('index'))
+    # Handle separate files mode (original behavior)
+    else:
+        # Validate files
+        if 'estimate_file' not in request.files:
+            flash('Please upload an estimate file', 'error')
+            return redirect(url_for('index'))
+        
+        if 'actual_file' not in request.files:
+            flash('Please upload an actual file', 'error')
+            return redirect(url_for('index'))
+        
+        estimate_file = request.files['estimate_file']
+        actual_file = request.files['actual_file']
+        
+        if estimate_file.filename == '' or actual_file.filename == '':
+            flash('Please select both files', 'error')
+            return redirect(url_for('index'))
+        
+        if not allowed_file(estimate_file.filename) or not allowed_file(actual_file.filename):
+            flash('Only .xlsx and .xls files are allowed', 'error')
+            return redirect(url_for('index'))
+        
+        # Save files temporarily and run analysis
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                estimate_path = os.path.join(temp_dir, secure_filename(estimate_file.filename))
+                actual_path = os.path.join(temp_dir, secure_filename(actual_file.filename))
+                
+                estimate_file.save(estimate_path)
+                actual_file.save(actual_path)
+                
+                # Run analysis using the same backend logic as the API
+                result = analyze_files(
+                    estimate_path,
+                    actual_path,
+                    project_name=project_name,
+                    save_memory=save_memory,
+                    quick_mode=False,  # Always use Gemini for web UI
+                    generate_chart=generate_chart
+                )
+            
+            if not result.get('success'):
+                flash(f"Analysis failed: {result.get('error', 'Unknown error')}", 'error')
+                return redirect(url_for('index'))
+            
+            # Pass results to template
+            return render_template('result.html', **result)
+        
+        except Exception as e:
+            flash(f'An error occurred: {str(e)}', 'error')
+            return redirect(url_for('index'))
 
 
 @app.route('/patterns', methods=['GET'])
@@ -274,6 +358,104 @@ def analyze_api():
         return jsonify({
             'success': False,
             'error': f'Analysis failed: {str(e)}'
+        }), 500
+
+
+@app.route('/submit_feedback', methods=['POST'])
+def submit_feedback():
+    """
+    Handle feedback submission from users.
+    
+    Expected JSON payload:
+    {
+        "insight_id": "project_doc_id or category_name",
+        "feedback_type": "detailed" or "summary",
+        "rating": "thumbs_up" or "thumbs_down",
+        "feedback_text": "optional detailed feedback",
+        "metadata": {}
+    }
+    
+    Returns JSON with success status.
+    """
+    from flask import jsonify
+    from memory.store_feedback import store_insight_feedback
+    
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        # Validate required fields
+        insight_id = data.get('insight_id')
+        feedback_type = data.get('feedback_type')
+        rating = data.get('rating')
+        
+        if not insight_id or not feedback_type or not rating:
+            return jsonify({
+                'success': False, 
+                'error': 'Missing required fields: insight_id, feedback_type, rating'
+            }), 400
+        
+        # Validate rating value
+        if rating not in ['thumbs_up', 'thumbs_down']:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid rating. Must be thumbs_up or thumbs_down'
+            }), 400
+        
+        # Store feedback
+        feedback_text = data.get('feedback_text', '')
+        metadata = data.get('metadata', {})
+        
+        feedback_id = store_insight_feedback(
+            insight_id=insight_id,
+            feedback_type=feedback_type,
+            rating=rating,
+            feedback_text=feedback_text,
+            metadata=metadata
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Thank you for your feedback! We use it to improve our insights.',
+            'feedback_id': feedback_id
+        }), 200
+    
+    except Exception as e:
+        print(f"Error storing feedback: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to store feedback. Please try again.'
+        }), 500
+
+
+@app.route('/feedback_stats', methods=['GET'])
+def feedback_stats():
+    """
+    Get feedback statistics (for admin/internal use).
+    
+    Query params:
+    - insight_id (optional): Get stats for specific insight
+    
+    Returns JSON with feedback statistics.
+    """
+    from flask import jsonify
+    from memory.store_feedback import get_feedback_statistics
+    
+    try:
+        insight_id = request.args.get('insight_id')
+        stats = get_feedback_statistics(insight_id=insight_id)
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        }), 200
+    
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
         }), 500
 
 

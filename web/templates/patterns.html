@@ -179,6 +179,34 @@
                         <div id="narrative-{{ loop.index }}" class="hidden text-sm text-gray-700 leading-relaxed whitespace-pre-line">
                             {{ project.narrative }}
                         </div>
+                        
+                        <!-- Simple Feedback Buttons -->
+                        <div class="mt-3 pt-3 border-t border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-gray-600">Was this insight helpful?</span>
+                                <div class="feedback-buttons flex gap-2" data-insight-id="{{ project.doc_id }}" data-project-index="{{ loop.index }}">
+                                    <button 
+                                        onclick="submitSimpleFeedback('{{ project.doc_id }}', 'thumbs_up', {{ loop.index }})"
+                                        class="simple-feedback-btn feedback-up-{{ loop.index }} px-3 py-1 text-xs border border-gray-300 rounded-md hover:border-green-500 hover:bg-green-50 hover:text-green-700 transition flex items-center gap-1"
+                                        title="Helpful"
+                                    >
+                                        <i class="fas fa-thumbs-up"></i>
+                                    </button>
+                                    <button 
+                                        onclick="submitSimpleFeedback('{{ project.doc_id }}', 'thumbs_down', {{ loop.index }})"
+                                        class="simple-feedback-btn feedback-down-{{ loop.index }} px-3 py-1 text-xs border border-gray-300 rounded-md hover:border-red-500 hover:bg-red-50 hover:text-red-700 transition flex items-center gap-1"
+                                        title="Not helpful"
+                                    >
+                                        <i class="fas fa-thumbs-down"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Feedback confirmation message -->
+                            <div id="feedback-msg-{{ loop.index }}" class="hidden mt-2 text-xs text-green-600 flex items-center">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                <span>Thank you for your feedback!</span>
+                            </div>
+                        </div>
                     </div>
                     {% endif %}
 
@@ -295,6 +323,62 @@
                 icon.classList.remove('fa-chevron-up');
                 icon.classList.add('fa-chevron-down');
                 text.textContent = 'Expand';
+            }
+        }
+        
+        // Submit simple feedback (thumbs up/down only)
+        async function submitSimpleFeedback(insightId, rating, projectIndex) {
+            const feedbackMsg = document.getElementById('feedback-msg-' + projectIndex);
+            const upBtn = document.querySelector('.feedback-up-' + projectIndex);
+            const downBtn = document.querySelector('.feedback-down-' + projectIndex);
+            
+            try {
+                const response = await fetch('/submit_feedback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        insight_id: insightId,
+                        feedback_type: 'summary',
+                        rating: rating,
+                        metadata: {
+                            page: 'patterns',
+                            timestamp: new Date().toISOString()
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show confirmation message
+                    feedbackMsg.classList.remove('hidden');
+                    
+                    // Highlight selected button and disable both
+                    if (rating === 'thumbs_up') {
+                        upBtn.classList.add('border-green-500', 'bg-green-100', 'text-green-700');
+                    } else {
+                        downBtn.classList.add('border-red-500', 'bg-red-100', 'text-red-700');
+                    }
+                    
+                    // Disable both buttons
+                    upBtn.disabled = true;
+                    downBtn.disabled = true;
+                    upBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    downBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    
+                    // Hide message after 3 seconds
+                    setTimeout(() => {
+                        feedbackMsg.classList.add('hidden');
+                    }, 3000);
+                } else {
+                    console.error('Failed to submit feedback:', data.error);
+                    alert('Failed to submit feedback. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error submitting feedback:', error);
+                alert('Failed to submit feedback. Please try again.');
             }
         }
     </script>
