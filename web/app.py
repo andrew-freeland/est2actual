@@ -154,6 +154,55 @@ def patterns():
         return redirect(url_for('index'))
 
 
+@app.route('/export_pdf/<doc_id>', methods=['GET'])
+def export_pdf(doc_id):
+    """
+    Export a project analysis as a PDF.
+    
+    Args:
+        doc_id: Firestore document ID of the project
+    
+    Returns:
+        PDF file download
+    """
+    try:
+        from google.cloud import firestore
+        from report.export_pdf import generate_project_pdf, generate_pdf_filename
+        from flask import send_file
+        
+        # Initialize Firestore
+        db = firestore.Client(project=os.getenv('GCP_PROJECT_ID'))
+        
+        # Retrieve project data
+        doc_ref = db.collection('project_insights').document(doc_id)
+        doc = doc_ref.get()
+        
+        if not doc.exists:
+            flash('Project not found', 'error')
+            return redirect(url_for('patterns'))
+        
+        project_data = doc.to_dict()
+        
+        # Generate PDF
+        pdf_buffer = generate_project_pdf(project_data)
+        
+        # Generate filename
+        project_name = project_data.get('project_name', 'Project')
+        filename = generate_pdf_filename(project_name)
+        
+        # Send PDF
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+    
+    except Exception as e:
+        flash(f'Failed to generate PDF: {str(e)}', 'error')
+        return redirect(url_for('patterns'))
+
+
 @app.route('/analyze', methods=['POST'])
 def analyze_api():
     """

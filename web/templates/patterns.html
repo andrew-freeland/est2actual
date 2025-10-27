@@ -157,14 +157,24 @@
                             <h4 class="text-sm font-semibold text-gray-700">
                                 <i class="fas fa-robot mr-2 text-blue-600"></i>AI-Generated Insight:
                             </h4>
-                            <button 
-                                onclick="toggleNarrative('narrative-{{ loop.index }}')" 
-                                class="text-xs px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition font-medium focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                id="toggle-btn-{{ loop.index }}"
-                            >
-                                <i class="fas fa-chevron-down mr-1"></i>
-                                <span>Expand</span>
-                            </button>
+                            <div class="flex gap-2">
+                                <a 
+                                    href="/export_pdf/{{ project.doc_id }}"
+                                    class="text-xs px-3 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded-md transition font-medium focus:outline-none focus:ring-2 focus:ring-green-300"
+                                    title="Export as PDF"
+                                >
+                                    <i class="fas fa-file-pdf mr-1"></i>
+                                    <span>Export</span>
+                                </a>
+                                <button 
+                                    onclick="toggleNarrative('narrative-{{ loop.index }}')" 
+                                    class="text-xs px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition font-medium focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                    id="toggle-btn-{{ loop.index }}"
+                                >
+                                    <i class="fas fa-chevron-down mr-1"></i>
+                                    <span>Expand</span>
+                                </button>
+                            </div>
                         </div>
                         <div id="narrative-{{ loop.index }}" class="hidden text-sm text-gray-700 leading-relaxed whitespace-pre-line">
                             {{ project.narrative }}
