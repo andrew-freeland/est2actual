@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analysis Results - {{ project_name }}</title>
+    <title>Analysis Results - {{ intelligent_title or project_name }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @keyframes slideIn {
@@ -55,7 +55,7 @@
 
         <!-- Project Header -->
         <div class="mb-8 slide-in">
-            <h1 class="text-4xl font-extrabold text-gray-900 mb-2">{{ project_name }}</h1>
+            <h1 class="text-4xl font-extrabold text-gray-900 mb-2">{{ intelligent_title or project_name }}</h1>
             <p class="text-gray-600">Estimate vs. Actual Cost Analysis</p>
         </div>
 

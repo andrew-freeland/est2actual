@@ -150,13 +150,25 @@
                         </div>
                     </div>
 
-                    <!-- Narrative Preview -->
+                    <!-- Full Narrative (Collapsible) -->
                     {% if project.narrative %}
                     <div class="bg-gray-50 rounded-lg p-4">
-                        <h4 class="text-sm font-semibold text-gray-700 mb-2">AI Insight Preview:</h4>
-                        <p class="text-sm text-gray-600 line-clamp-3">
-                            {{ project.narrative[:300] }}{% if project.narrative|length > 300 %}...{% endif %}
-                        </p>
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="text-sm font-semibold text-gray-700">
+                                <i class="fas fa-robot mr-2 text-blue-600"></i>AI-Generated Insight:
+                            </h4>
+                            <button 
+                                onclick="toggleNarrative('narrative-{{ loop.index }}')" 
+                                class="text-xs px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition font-medium focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                id="toggle-btn-{{ loop.index }}"
+                            >
+                                <i class="fas fa-chevron-down mr-1"></i>
+                                <span>Expand</span>
+                            </button>
+                        </div>
+                        <div id="narrative-{{ loop.index }}" class="hidden text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                            {{ project.narrative }}
+                        </div>
                     </div>
                     {% endif %}
 
@@ -251,6 +263,31 @@
             </div>
         </div>
     </footer>
+
+    <!-- JavaScript for Collapsible Narratives -->
+    <script>
+        function toggleNarrative(narrativeId) {
+            const narrative = document.getElementById(narrativeId);
+            const btnId = 'toggle-btn-' + narrativeId.split('-')[1];
+            const button = document.getElementById(btnId);
+            const icon = button.querySelector('i');
+            const text = button.querySelector('span');
+            
+            if (narrative.classList.contains('hidden')) {
+                // Expand
+                narrative.classList.remove('hidden');
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+                text.textContent = 'Collapse';
+            } else {
+                // Collapse
+                narrative.classList.add('hidden');
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+                text.textContent = 'Expand';
+            }
+        }
+    </script>
 </body>
 </html>
 

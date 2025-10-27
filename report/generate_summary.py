@@ -232,3 +232,58 @@ Key Findings:
 """
     return summary.strip()
 
+
+def generate_project_title(summary_stats: Dict[str, Any], project_name: str = None) -> str:
+    """
+    Generate an intelligent, descriptive title for the project based on analysis.
+    
+    Args:
+        summary_stats: Dictionary of summary statistics
+        project_name: Optional base project name
+    
+    Returns:
+        Generated descriptive title
+    """
+    variance = summary_stats['total_variance']
+    variance_pct = summary_stats['total_variance_pct']
+    biggest_overrun = summary_stats['biggest_overrun']
+    biggest_underrun = summary_stats['biggest_underrun']
+    
+    # Determine status descriptor
+    if abs(variance_pct) < 2:
+        status = "On-Budget"
+    elif variance > 0:
+        if variance_pct > 10:
+            status = "Significant Overrun"
+        elif variance_pct > 5:
+            status = "Moderate Overrun"
+        else:
+            status = "Slight Overrun"
+    else:
+        if abs(variance_pct) > 10:
+            status = "Major Savings"
+        elif abs(variance_pct) > 5:
+            status = "Good Savings"
+        else:
+            status = "Slight Savings"
+    
+    # Get primary cost category (biggest impact)
+    if abs(biggest_overrun['amount']) > abs(biggest_underrun['amount']):
+        primary_category = biggest_overrun['category']
+    else:
+        primary_category = biggest_underrun['category']
+    
+    # Shorten category name if too long
+    if len(primary_category) > 25:
+        primary_category = primary_category[:22] + "..."
+    
+    # Build title
+    if project_name and project_name != 'Unnamed Project' and project_name != 'InternalTest':
+        # Use provided name with status
+        title = f"{project_name} - {status}"
+    else:
+        # Generate descriptive title
+        title = f"{status} - {primary_category} Project"
+    
+    return title
+

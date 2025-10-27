@@ -23,7 +23,8 @@ from parsers.compare_estimate_to_actual import (
 from report.generate_summary import (
     initialize_vertex_ai,
     generate_insight_narrative,
-    generate_quick_summary
+    generate_quick_summary,
+    generate_project_title
 )
 from memory.store_project_summary import (
     store_project_insight,
@@ -79,6 +80,9 @@ def analyze_files(estimate_path: str, actual_path: str,
         # Step 3: Generate summary statistics
         summary_stats = generate_summary_stats(variance_df)
         
+        # Step 3.5: Generate intelligent project title
+        intelligent_title = generate_project_title(summary_stats, project_name)
+        
         # Step 4: Retrieve similar past projects (if memory enabled)
         prior_summaries = []
         if save_memory:
@@ -114,11 +118,12 @@ def analyze_files(estimate_path: str, actual_path: str,
         if save_memory:
             try:
                 doc_id = store_project_insight(
-                    project_name=project_name,
+                    project_name=intelligent_title,  # Use intelligent title for storage
                     narrative=narrative,
                     variance_summary=summary_stats,
                     metadata={
-                        'similar_projects_count': len(prior_summaries)
+                        'similar_projects_count': len(prior_summaries),
+                        'original_project_name': project_name  # Keep original for reference
                     }
                 )
             except Exception as e:
@@ -143,6 +148,7 @@ def analyze_files(estimate_path: str, actual_path: str,
         result = {
             'success': True,
             'project_name': project_name,
+            'intelligent_title': intelligent_title,  # Auto-generated descriptive title
             'summary': summary_stats,
             'narrative': narrative,
             'variance_data': variance_df.to_dict('records'),
