@@ -25,7 +25,7 @@ def load_excel(filepath: str, sheet_name: str = 0) -> pd.DataFrame:
         raise ValueError(f"Failed to load Excel file {filepath}: {str(e)}")
 
 
-def compare_estimates(estimate_df: pd.DataFrame, actual_df: pd.DataFrame) -> pd.DataFrame:
+def compare_estimates(estimate_df: pd.DataFrame, actual_df: pd.DataFrame) -> tuple:
     """
     Compare estimate and actual dataframes to calculate variance.
     
@@ -36,20 +36,65 @@ def compare_estimates(estimate_df: pd.DataFrame, actual_df: pd.DataFrame) -> pd.
         actual_df: DataFrame with actual costs
     
     Returns:
-        DataFrame with columns: Category, Estimated, Actual, Variance, Variance_Pct
+        Tuple of (variance_df, category_mapping_dict)
+        - variance_df: DataFrame with columns: Category, Estimated, Actual, Variance, Variance_Pct
+        - category_mapping_dict: Details about how categories were matched/bundled
     """
     # Normalize column names (flexible for different formats)
-    estimate_df = _normalize_columns(estimate_df)
-    actual_df = _normalize_columns(actual_df)
+    estimate_norm = _normalize_columns(estimate_df)
+    actual_norm = _normalize_columns(actual_df)
+    
+    # Track categories before merge for mapping info
+    estimate_categories = set(estimate_norm['category'].tolist())
+    actual_categories = set(actual_norm['category'].tolist())
     
     # Merge on category
     merged = pd.merge(
-        estimate_df[['category', 'amount']],
-        actual_df[['category', 'amount']],
+        estimate_norm[['category', 'amount']],
+        actual_norm[['category', 'amount']],
         on='category',
         how='outer',
         suffixes=('_estimate', '_actual')
     )
+    
+    # Build category mapping info before filling NaNs
+    matched_categories = []
+    estimate_only = []
+    actual_only = []
+    
+    for _, row in merged.iterrows():
+        category = row['category']
+        has_estimate = pd.notna(row['amount_estimate']) and row['amount_estimate'] != 0
+        has_actual = pd.notna(row['amount_actual']) and row['amount_actual'] != 0
+        
+        if has_estimate and has_actual:
+            matched_categories.append({
+                'category': category,
+                'estimated': float(row['amount_estimate']),
+                'actual': float(row['amount_actual'])
+            })
+        elif has_estimate and not has_actual:
+            estimate_only.append({
+                'category': category,
+                'estimated': float(row['amount_estimate'])
+            })
+        elif has_actual and not has_estimate:
+            actual_only.append({
+                'category': category,
+                'actual': float(row['amount_actual'])
+            })
+    
+    category_mapping = {
+        'matched_categories': matched_categories,
+        'estimate_only_categories': estimate_only,
+        'actual_only_categories': actual_only,
+        'match_summary': {
+            'total_matched': len(matched_categories),
+            'total_estimate_only': len(estimate_only),
+            'total_actual_only': len(actual_only),
+            'match_rate_pct': (len(matched_categories) / max(len(estimate_categories), 1)) * 100
+        }
+    }
     
     # Fill NaN values with 0
     merged['amount_estimate'] = merged['amount_estimate'].fillna(0)
@@ -70,7 +115,7 @@ def compare_estimates(estimate_df: pd.DataFrame, actual_df: pd.DataFrame) -> pd.
         'variance_pct': 'Variance_%'
     }, inplace=True)
     
-    return merged
+    return merged, category_mapping
 
 
 def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:

@@ -81,8 +81,13 @@ def main():
     
     # Step 2: Compare and calculate variance
     print("🔍 Comparing estimates to actuals...")
-    variance_df = compare_estimates(estimate_df, actual_df)
+    variance_df, category_mapping = compare_estimates(estimate_df, actual_df)
     print(f"   ✓ Analyzed {len(variance_df)} categories")
+    print(f"   ✓ Matched {category_mapping['match_summary']['total_matched']} categories between reports")
+    if category_mapping['match_summary']['total_estimate_only'] > 0:
+        print(f"   ℹ️  {category_mapping['match_summary']['total_estimate_only']} categories only in estimate (budgeted but not spent)")
+    if category_mapping['match_summary']['total_actual_only'] > 0:
+        print(f"   ⚠️  {category_mapping['match_summary']['total_actual_only']} categories only in actual (unbudgeted spending)")
     print()
     
     # Step 3: Generate summary statistics
@@ -118,7 +123,7 @@ def main():
     # Step 5: Generate narrative insight
     if args.quick:
         print("📝 Generating quick summary...")
-        narrative = generate_quick_summary(summary_stats)
+        narrative = generate_quick_summary(summary_stats, category_mapping)
     else:
         print("🤖 Generating AI insight with Gemini 1.5 Pro...")
         try:
@@ -136,7 +141,7 @@ def main():
         except Exception as e:
             print(f"   ⚠️  Failed to generate AI insight: {str(e)}")
             print("   Falling back to quick summary...")
-            narrative = generate_quick_summary(summary_stats)
+            narrative = generate_quick_summary(summary_stats, category_mapping)
     
     print()
     print("AI INSIGHT")

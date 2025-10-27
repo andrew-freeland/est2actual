@@ -73,8 +73,8 @@ def analyze_files(estimate_path: str, actual_path: str,
         estimate_df = load_excel(estimate_path)
         actual_df = load_excel(actual_path)
         
-        # Step 2: Calculate variance
-        variance_df = compare_estimates(estimate_df, actual_df)
+        # Step 2: Calculate variance and get category mapping
+        variance_df, category_mapping = compare_estimates(estimate_df, actual_df)
         
         # Step 3: Generate summary statistics
         summary_stats = generate_summary_stats(variance_df)
@@ -90,7 +90,7 @@ def analyze_files(estimate_path: str, actual_path: str,
         
         # Step 5: Generate narrative insight
         if quick_mode:
-            narrative = generate_quick_summary(summary_stats)
+            narrative = generate_quick_summary(summary_stats, category_mapping)
         else:
             try:
                 initialize_vertex_ai()
@@ -107,7 +107,7 @@ def analyze_files(estimate_path: str, actual_path: str,
                 print(f"Error type: {type(e).__name__}")
                 print(f"Error message: {str(e)}")
                 print(f"Traceback:\n{traceback.format_exc()}")
-                narrative = generate_quick_summary(summary_stats)
+                narrative = generate_quick_summary(summary_stats, category_mapping)
         
         # Step 6: Save to memory (optional)
         doc_id = None
@@ -146,6 +146,7 @@ def analyze_files(estimate_path: str, actual_path: str,
             'summary': summary_stats,
             'narrative': narrative,
             'variance_data': variance_df.to_dict('records'),
+            'category_mapping': category_mapping,
             'pattern_detection_enabled': len(prior_summaries) > 0,
             'similar_projects_count': len(prior_summaries),
             'memory_id': doc_id

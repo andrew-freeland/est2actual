@@ -105,6 +105,100 @@
             </div>
         </div>
 
+        <!-- Category Matching Section -->
+        {% if category_mapping %}
+        <div class="mb-8 bg-white rounded-lg shadow-xl overflow-hidden slide-in">
+            <div class="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4 flex items-center">
+                <i class="fas fa-code-branch text-3xl mr-3 text-white"></i>
+                <h2 class="text-2xl font-bold text-white">Category Matching Report</h2>
+            </div>
+            
+            <div class="p-8">
+                <p class="text-gray-700 mb-6">
+                    This shows how categories from your Estimate report (e.g., Buildertrend export) were matched to categories in your Actual report (e.g., QuickBooks export).
+                </p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                        <div class="flex items-center">
+                            <i class="fas fa-check-circle text-green-600 text-2xl mr-3"></i>
+                            <div>
+                                <div class="text-sm text-gray-600">Matched Categories</div>
+                                <div class="text-3xl font-bold text-green-700">{{ category_mapping.match_summary.total_matched }}</div>
+                                <div class="text-xs text-gray-500 mt-1">Found in both reports</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-triangle text-yellow-600 text-2xl mr-3"></i>
+                            <div>
+                                <div class="text-sm text-gray-600">Estimate Only</div>
+                                <div class="text-3xl font-bold text-yellow-700">{{ category_mapping.match_summary.total_estimate_only }}</div>
+                                <div class="text-xs text-gray-500 mt-1">Budgeted but not spent</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-orange-50 border-l-4 border-orange-500 p-4 rounded">
+                        <div class="flex items-center">
+                            <i class="fas fa-surprise text-orange-600 text-2xl mr-3"></i>
+                            <div>
+                                <div class="text-sm text-gray-600">Actual Only</div>
+                                <div class="text-3xl font-bold text-orange-700">{{ category_mapping.match_summary.total_actual_only }}</div>
+                                <div class="text-xs text-gray-500 mt-1">Unbudgeted spending</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-percentage text-blue-600 text-xl mr-3"></i>
+                        <div>
+                            <span class="text-sm text-gray-600">Match Rate: </span>
+                            <span class="text-xl font-bold text-blue-700">{{ "%.0f"|format(category_mapping.match_summary.match_rate_pct) }}%</span>
+                            <span class="text-xs text-gray-500 ml-2">of estimate categories found in actual report</span>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if category_mapping.estimate_only_categories|length > 0 %}
+                <div class="mt-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-2">
+                        <i class="fas fa-file-invoice text-yellow-600 mr-2"></i>Budgeted but Not Spent:
+                    </h3>
+                    <div class="bg-yellow-50 rounded p-3 text-sm text-gray-700">
+                        {% for cat in category_mapping.estimate_only_categories[:5] %}
+                            <span class="inline-block bg-yellow-200 px-2 py-1 rounded mr-2 mb-2">{{ cat.category }}</span>
+                        {% endfor %}
+                        {% if category_mapping.estimate_only_categories|length > 5 %}
+                            <span class="text-gray-500">... and {{ category_mapping.estimate_only_categories|length - 5 }} more</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if category_mapping.actual_only_categories|length > 0 %}
+                <div class="mt-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-2">
+                        <i class="fas fa-money-bill-wave text-orange-600 mr-2"></i>Unbudgeted Spending:
+                    </h3>
+                    <div class="bg-orange-50 rounded p-3 text-sm text-gray-700">
+                        {% for cat in category_mapping.actual_only_categories[:5] %}
+                            <span class="inline-block bg-orange-200 px-2 py-1 rounded mr-2 mb-2">{{ cat.category }}</span>
+                        {% endfor %}
+                        {% if category_mapping.actual_only_categories|length > 5 %}
+                            <span class="text-gray-500">... and {{ category_mapping.actual_only_categories|length - 5 }} more</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Memory Status & Pattern Detection -->
         {% if memory_id %}
         <div class="mb-8 bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded-lg shadow-md slide-in">

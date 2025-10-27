@@ -152,7 +152,7 @@ Write your analysis now:
     return prompt
 
 
-def generate_quick_summary(summary_stats: Dict[str, Any]) -> str:
+def generate_quick_summary(summary_stats: Dict[str, Any], category_mapping: Dict[str, Any] = None) -> str:
     """
     Generate a clear, readable summary without calling Gemini (for testing/fallback).
     
@@ -178,6 +178,38 @@ def generate_quick_summary(summary_stats: Dict[str, Any]) -> str:
         status = "on budget"
         status_emoji = "✅"
     
+    # Build category matching section
+    category_matching_text = ""
+    if category_mapping:
+        match_summary = category_mapping.get('match_summary', {})
+        matched = match_summary.get('total_matched', 0)
+        estimate_only = match_summary.get('total_estimate_only', 0)
+        actual_only = match_summary.get('total_actual_only', 0)
+        match_rate = match_summary.get('match_rate_pct', 0)
+        
+        category_matching_text = f"""
+Category Matching (Estimate Report vs Actual Report):
+• {matched} categories found in BOTH reports (matched exactly)
+• {estimate_only} categories only in Estimate report (no actual spending recorded)
+• {actual_only} categories only in Actual report (unbudgeted/unexpected costs)
+• Match Rate: {match_rate:.0f}%
+"""
+        
+        # Add unmatched categories details if they exist
+        if estimate_only > 0:
+            estimate_only_cats = category_mapping.get('estimate_only_categories', [])
+            if estimate_only_cats:
+                category_matching_text += f"\nBudgeted but Not Spent: {', '.join([c['category'] for c in estimate_only_cats[:3]])}"
+                if len(estimate_only_cats) > 3:
+                    category_matching_text += f" (+{len(estimate_only_cats) - 3} more)"
+        
+        if actual_only > 0:
+            actual_only_cats = category_mapping.get('actual_only_categories', [])
+            if actual_only_cats:
+                category_matching_text += f"\nUnbudgeted Spending: {', '.join([c['category'] for c in actual_only_cats[:3]])}"
+                if len(actual_only_cats) > 3:
+                    category_matching_text += f" (+{len(actual_only_cats) - 3} more)"
+    
     # Build readable summary
     summary = f"""PROJECT BUDGET SUMMARY
 
@@ -187,7 +219,7 @@ Budget Overview:
 • Original Budget: ${total_est:,.2f}
 • Actual Spending: ${total_act:,.2f}
 • Difference: ${variance:+,.2f}
-
+{category_matching_text}
 Category Breakdown:
 • {summary_stats['over_budget_categories']} categories exceeded their budgets
 • {summary_stats['under_budget_categories']} categories came in under budget
