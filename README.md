@@ -87,17 +87,17 @@ gunicorn web.app:app --bind 0.0.0.0:8080
 python main.py estimate.xlsx actual.xlsx --quick
 
 # With AI insight generation
-python main.py estimate.xlsx actual.xlsx --project-name "Q4 Marketing Campaign"
+python main.py estimate.xlsx actual.xlsx --project-name "Smith ADU – Office Remodel"
 
 # Save to Firestore memory
-python main.py estimate.xlsx actual.xlsx --project-name "Q4 Campaign" --save-memory
+python main.py estimate.xlsx actual.xlsx --project-name "Smith ADU – Office Remodel" --save-memory
 
 # Generate variance bar chart
-python main.py estimate.xlsx actual.xlsx --project-name "Q4 Campaign" --generate-chart
+python main.py estimate.xlsx actual.xlsx --project-name "Smith ADU – Office Remodel" --generate-chart
 
 # All features combined
 python main.py estimate.xlsx actual.xlsx \
-  --project-name "Q4 Campaign" \
+  --project-name "Smith ADU – Office Remodel" \
   --save-memory \
   --generate-chart
 ```
