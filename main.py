@@ -28,7 +28,7 @@ from report.generate_summary import (
     generate_insight_narrative,
     generate_quick_summary
 )
-from memory.store_project_summary import store_project_insight
+from memory.store_project_summary import store_project_insight, retrieve_similar_projects
 
 
 def main():
@@ -91,7 +91,22 @@ def main():
     print("-" * 80)
     print()
     
-    # Step 4: Generate narrative insight
+    # Step 4: Retrieve similar past projects (if memory enabled)
+    prior_summaries = []
+    if args.save_memory:
+        print("🧠 Retrieving similar past projects from memory...")
+        try:
+            # Create a search query from current project
+            search_query = f"{args.project_name} budget variance analysis"
+            prior_summaries = retrieve_similar_projects(search_query, limit=3)
+            if prior_summaries:
+                print(f"   ✓ Found {len(prior_summaries)} similar past projects")
+            else:
+                print("   ℹ️  No prior projects found (this may be the first)")
+        except Exception as e:
+            print(f"   ⚠️  Could not retrieve memory: {str(e)}")
+    
+    # Step 5: Generate narrative insight
     if args.quick:
         print("📝 Generating quick summary...")
         narrative = generate_quick_summary(summary_stats)
@@ -103,9 +118,12 @@ def main():
             narrative = generate_insight_narrative(
                 variance_data_str,
                 summary_stats,
-                args.project_name
+                args.project_name,
+                prior_summaries=prior_summaries  # Pass historical context
             )
             print("   ✓ Insight generated")
+            if prior_summaries:
+                print("   ✓ Pattern detection enabled (using historical data)")
         except Exception as e:
             print(f"   ⚠️  Failed to generate AI insight: {str(e)}")
             print("   Falling back to quick summary...")
@@ -118,7 +136,7 @@ def main():
     print("=" * 80)
     print()
     
-    # Step 5: Save to memory (optional)
+    # Step 6: Save to memory (optional)
     if args.save_memory:
         print("💾 Saving to Firestore memory...")
         try:
@@ -128,10 +146,12 @@ def main():
                 variance_summary=summary_stats,
                 metadata={
                     'estimate_file': args.estimate_file,
-                    'actual_file': args.actual_file
+                    'actual_file': args.actual_file,
+                    'similar_projects_count': len(prior_summaries)
                 }
             )
             print(f"   ✓ Saved with ID: {doc_id}")
+            print(f"   ✓ Future analyses will learn from this project")
         except Exception as e:
             print(f"   ⚠️  Failed to save to memory: {str(e)}")
     

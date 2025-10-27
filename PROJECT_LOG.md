@@ -129,3 +129,64 @@ gcloud auth application-default login
 - Consider rate limiting if exposing as public API
 - Embedding model may change - abstract behind interface
 
+---
+
+## 2025-10-27 (Evening): Pattern Detection Enhancement
+
+### Self-Improving Agent Capability Added
+
+**Problem**: Memory system existed but wasn't being used to improve insights over time.
+
+**Solution**: Implemented pattern-aware insight generation.
+
+**Changes Made:**
+
+1. **`report/generate_summary.py`**:
+   - Added `prior_summaries` parameter to `generate_insight_narrative()`
+   - Enhanced `_build_prompt()` to include historical context
+   - Added generation config: temperature=0.3, max_output_tokens=2048
+   - Prompt now asks Gemini to detect recurring patterns
+
+2. **`main.py`**:
+   - Added Step 4: Retrieve similar past projects before generating insights
+   - Imports `retrieve_similar_projects()` from memory module
+   - Passes historical data to Gemini for pattern detection
+   - User feedback shows when pattern detection is active
+
+### How It Works Now:
+
+```
+User runs analysis with --save-memory
+  ↓
+1. Parse Excel files
+2. Calculate variance
+3. Generate summary stats
+4. 🆕 Query Firestore for similar past projects (semantic search)
+5. Pass historical context to Gemini
+6. Gemini identifies patterns across projects
+7. Save new insight to memory (builds future context)
+```
+
+### Example Output:
+
+```
+🧠 Retrieving similar past projects from memory...
+   ✓ Found 3 similar past projects
+🤖 Generating AI insight with Gemini 1.5 Pro...
+   ✓ Insight generated
+   ✓ Pattern detection enabled (using historical data)
+```
+
+### Benefits:
+
+- **Self-improving**: Each analysis makes future analyses smarter
+- **Pattern detection**: Identifies recurring budget issues
+- **Cost-effective**: Retrieves only top-3 similar projects
+- **Optional**: Works without memory flag for standalone analysis
+
+### Future Enhancements:
+
+- Migrate to Vertex AI Matching Engine for true vector similarity
+- Add confidence scores for pattern detection
+- Allow user to query: "What patterns have you seen in marketing overruns?"
+

@@ -26,7 +26,8 @@ def initialize_vertex_ai(project_id: str = None, location: str = "us-central1"):
 
 
 def generate_insight_narrative(variance_data: str, summary_stats: Dict[str, Any], 
-                               project_name: str = "Unnamed Project") -> str:
+                               project_name: str = "Unnamed Project",
+                               prior_summaries: list = None) -> str:
     """
     Generate a narrative insight using Gemini based on variance analysis.
     
@@ -34,22 +35,31 @@ def generate_insight_narrative(variance_data: str, summary_stats: Dict[str, Any]
         variance_data: String representation of the variance dataframe
         summary_stats: Dictionary of summary statistics
         project_name: Name of the project being analyzed
+        prior_summaries: List of similar past project summaries for pattern detection
     
     Returns:
         String containing the narrative insight
     """
-    prompt = _build_prompt(variance_data, summary_stats, project_name)
+    prompt = _build_prompt(variance_data, summary_stats, project_name, prior_summaries or [])
     
     try:
         model = GenerativeModel("gemini-1.5-pro")
-        response = model.generate_content(prompt)
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.3,         # Lower for consistent financial analysis
+                "max_output_tokens": 2048,  # Cost control
+                "top_p": 0.8,
+                "top_k": 40,
+            }
+        )
         return response.text
     except Exception as e:
         raise RuntimeError(f"Failed to generate insight with Gemini: {str(e)}")
 
 
 def _build_prompt(variance_data: str, summary_stats: Dict[str, Any], 
-                  project_name: str) -> str:
+                  project_name: str, prior_summaries: list = None) -> str:
     """
     Build the prompt for Gemini based on variance data and statistics.
     
@@ -57,10 +67,28 @@ def _build_prompt(variance_data: str, summary_stats: Dict[str, Any],
         variance_data: String representation of variance data
         summary_stats: Dictionary of summary statistics
         project_name: Name of the project
+        prior_summaries: List of similar past project insights
     
     Returns:
         Formatted prompt string
     """
+    # Build historical context if available
+    historical_context = ""
+    if prior_summaries and len(prior_summaries) > 0:
+        historical_context = "\n**Historical Context - Similar Past Projects**:\n"
+        for i, past_project in enumerate(prior_summaries[:3], 1):  # Limit to 3 for token efficiency
+            proj_name = past_project.get('project_name', 'Unknown')
+            variance_pct = past_project.get('variance_summary', {}).get('total_variance_pct', 0)
+            historical_context += f"\n{i}. **{proj_name}**: {variance_pct:+.1f}% variance\n"
+            
+            # Include snippet of past narrative
+            past_narrative = past_project.get('narrative', '')
+            if past_narrative:
+                snippet = past_narrative[:300] + "..." if len(past_narrative) > 300 else past_narrative
+                historical_context += f"   Insight: {snippet}\n"
+        
+        historical_context += "\n**Pattern Detection**: Look for recurring themes across these projects.\n"
+    
     prompt = f"""You are a financial analyst reviewing a project budget variance report.
 
 **Project**: {project_name}
@@ -77,7 +105,7 @@ def _build_prompt(variance_data: str, summary_stats: Dict[str, Any],
 
 **Detailed Variance Data**:
 {variance_data}
-
+{historical_context}
 ---
 
 Please provide a professional, concise narrative insight (3-5 paragraphs) that:
@@ -85,7 +113,8 @@ Please provide a professional, concise narrative insight (3-5 paragraphs) that:
 1. **Summarizes** the overall budget performance (over/under budget and by how much)
 2. **Identifies** the key cost drivers - which categories had the biggest impact?
 3. **Explains** potential reasons for the variances (be specific to the category names)
-4. **Recommends** 2-3 actionable steps for future projects based on this data
+4. **Detects Patterns** - if historical data is provided, identify any recurring issues or trends
+5. **Recommends** 2-3 actionable steps for future projects based on this data and any patterns observed
 
 Write in a clear, executive-friendly style. Focus on insights, not just restating numbers.
 """
